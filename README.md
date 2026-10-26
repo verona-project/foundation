@@ -263,3 +263,32 @@ The formatter application additionally exercises large Foundation buffers. Byte
 copying, Array copying, Data zero-fill/equality, and UTF-8 validation now use
 bounded-depth traversal, avoiding reliance on pointer-bearing tail-call
 optimization. Other recursive APIs retain the stack limitations noted above.
+
+## Standalone checkout
+
+Foundation depends on Verona Base. Place its source checkout beside this
+repository as `base/`; the tests also require a sibling `testing/` checkout.
+With a compatible Verona compiler on your PATH, run from this repository:
+
+```sh
+verona build foundation ./build
+verona build foundation-tests ./build
+./build/foundation-tests
+verona build foundation-example ./build
+./build/foundation-example
+```
+
+The Make commands above run from the main
+[Verona](https://github.com/verona-project/verona) checkout, where this package
+is pinned at `projects/foundation`. Use its pinned Nix development environment
+for native verification. `make test-foundation` runs Foundation's suite;
+`make test-formatter` exercises its formatter consumer.
+
+Public clones use HTTPS. To push Foundation changes over SSH:
+
+```sh
+git remote set-url --push origin git@github.com:verona-project/foundation.git
+```
+
+Commit and push changes here before updating Verona's submodule reference.
+Released under the Unlicense; see `LICENSE`.
