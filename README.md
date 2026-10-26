@@ -1,4 +1,4 @@
-# Verona Foundation 0.1
+# Verona Foundation
 
 An initial Foundation library written in Verona. It provides explicit allocation,
 a segmented arena, binary data, UTF-8 strings, checked numeric utilities, absolute
