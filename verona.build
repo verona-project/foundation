@@ -1,4 +1,5 @@
 (static-library foundation
+ (version "0.1.0")
  (root foundation) (module-path "src") (module-path "../base/src") (optimize 2))
 (executable foundation-tests
  (root suite) (module-path "src") (module-path "tests")
