@@ -1,28 +1,31 @@
 (import base)
 (import testing)
 (import allocator)
-(import foundation.compat.arithmetic)
-(import foundation.compat.arithmetic :as n)
 (import error)
 (import system_allocator :as system)
 (import support)
 (import data)
 
+(base:constant u64-1 u64 1)
+(base:constant u64-0 u64 0)
+(base:constant u64-8192 u64 8192)
+(base:constant u64-3 u64 3)
+
 (base:function append-pattern ((owner (pointer data:data)) (i u64) (count u64) (acc testing:result))
   testing:result
-  (match (n:eq i count)
+  (match (== i count)
     (true acc)
     (false
       (match (data:append owner (support:pattern i))
-        ((ok) (append-pattern owner (n:add i 1) count acc))
+        ((ok) (append-pattern owner (+ i u64-1) count acc))
         (_ (testing:checks acc (testing:fail)))))))
 
 (base:function zeroes ((p (pointer u8)) (start u64) (end u64)) testing:result
-  (match (n:eq start end)
+  (match (== start end)
     (true (testing:empty))
     (false
       (let ((value u64 (base:convert (deref (pointer-offset p start)))))
-        (testing:checks (testing:check (n:eq value 0)) (zeroes p (n:add start 1) end))))))
+        (testing:checks (testing:check (== value u64-0)) (zeroes p (+ start u64-1) end))))))
 
 (testing:test empty-has-zero-length-without-allocation
   (let ((bytes data:data (data:empty (support:backend))))
@@ -30,8 +33,8 @@
       ((observed
          testing:result
          (testing:checks
-           (testing:check (n:eq (data:length bytes) 0))
-           (testing:check (n:eq (support:attempts) 0))
+           (testing:check (== (data:length bytes) u64-0))
+           (testing:check (== (support:attempts) u64-0))
            (testing:check (data:equal (data:borrow bytes) (data:view "" 0))))))
       (do (data:destroy (& bytes)) observed))))
 
@@ -71,7 +74,7 @@
          testing:result
          (testing:checks
            (append-pattern (& bytes) 0 8192 (testing:empty))
-           (testing:check (n:eq (data:length bytes) 8192))
+           (testing:check (== (data:length bytes) u64-8192))
            (support:verify (data:bytes bytes) 8192 0))))
       (do (data:destroy (& bytes)) observed))))
 
@@ -102,7 +105,7 @@
            (testing:check (match (data:resize (& bytes) 1024) ((ok) true) (_ false)))
            (support:verify (data:bytes bytes) 17 0)
            (zeroes (data:bytes bytes) 17 1024)
-           (testing:check (n:eq (support:attempts) 1)))))
+           (testing:check (== (support:attempts) u64-1)))))
       (do (data:destroy (& bytes)) observed))))
 
 (testing:test resize-to-zero-keeps-reusable-capacity
@@ -113,9 +116,9 @@
          (testing:checks
            (testing:check (match (data:resize (& bytes) 100) ((ok) true) (_ false)))
            (testing:check (match (data:resize (& bytes) 0) ((ok) true) (_ false)))
-           (testing:check (n:eq (data:length bytes) 0))
+           (testing:check (== (data:length bytes) u64-0))
            (testing:check (match (data:resize (& bytes) 100) ((ok) true) (_ false)))
-           (testing:check (n:eq (support:attempts) 1)))))
+           (testing:check (== (support:attempts) u64-1)))))
       (do (data:destroy (& bytes)) observed))))
 
 (testing:test slice-full
@@ -196,7 +199,7 @@
              (support:limit 0)
              (testing:check
                (match (data:resize (& bytes) 4096) ((allocation-error reason) true) (_ false))))
-           (testing:check (n:eq (data:length bytes) 3))
+           (testing:check (== (data:length bytes) u64-3))
            (testing:check (data:equal (data:borrow bytes) (data:view "abc" 3))))))
       (do (data:destroy (& bytes)) observed))))
 
@@ -212,7 +215,7 @@
              (support:limit 0)
              (testing:check
                (match (data:append (& bytes) 120) ((allocation-error reason) true) (_ false))))
-           (testing:check (n:eq (data:length bytes) 3))
+           (testing:check (== (data:length bytes) u64-3))
            (testing:check (data:equal (data:borrow bytes) (data:view "abc" 3))))))
       (do (data:destroy (& bytes)) observed))))
 
@@ -230,7 +233,7 @@
                (match (data:assign-bytes (& bytes) (data:view "longer replacement" 18))
                  ((allocation-error reason) true)
                  (_ false))))
-           (testing:check (n:eq (data:length bytes) 3))
+           (testing:check (== (data:length bytes) u64-3))
            (testing:check (data:equal (data:borrow bytes) (data:view "abc" 3))))))
       (do (data:destroy (& bytes)) observed))))
 
@@ -265,7 +268,7 @@
            (do
              (data:destroy (& bytes))
              (data:destroy (& bytes))
-             (testing:check (n:eq (support:released) 1))))))
+             (testing:check (== (support:released) u64-1))))))
       (do (data:destroy (& bytes)) observed))))
 
 (base:function release-data ((value data:data)) unit
@@ -274,12 +277,12 @@
 (testing:test reserve-preserves-length-and-content
   (testing:with-fixture (bytes data:data (data:empty (support:backend)) release-data)
     (testing:check (match (data:reserve (& bytes) 128) ((ok) true) (_ false)))
-    (testing:check (n:eq (data:length bytes) 0))
+    (testing:check (== (data:length bytes) u64-0))
     (testing:check (match (data:assign-bytes (& bytes) (data:view "abc" 3)) ((ok) true) (_ false)))
     (testing:check (match (data:reserve (& bytes) 256) ((ok) true) (_ false)))
-    (testing:check (n:eq (data:length bytes) 3))
+    (testing:check (== (data:length bytes) u64-3))
     (testing:check (data:equal (data:borrow bytes) (data:view "abc" 3)))
-    (testing:check (n:eq (support:outstanding) 1))))
+    (testing:check (== (support:outstanding) u64-1))))
 
 (testing:test reserve-failure-preserves-owner
   (testing:with-fixture (bytes data:data (data:empty (support:backend)) release-data)
@@ -288,9 +291,9 @@
       (support:limit 0)
       (testing:check
         (match (data:reserve (& bytes) 256) ((allocation-error reason) true) (_ false))))
-    (testing:check (n:eq (data:length bytes) 3))
+    (testing:check (== (data:length bytes) u64-3))
     (testing:check (data:equal (data:borrow bytes) (data:view "abc" 3)))
-    (testing:check (n:eq (support:outstanding) 1))))
+    (testing:check (== (support:outstanding) u64-1))))
 
 (export
   reserve-preserves-length-and-content

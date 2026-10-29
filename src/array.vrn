@@ -1,6 +1,5 @@
 (import base)
 (import allocator :as a)
-(import foundation.compat.arithmetic :as n)
 (import error :as e)
 
 (base:type layout (product (size u64) (alignment u64) (allocator a:backend)))
@@ -20,29 +19,29 @@
        (tuple-get items 2))
     `(base:function ,(symbol-concat prefix "-copy-elements")
        ((to (pointer ,element)) (from (pointer ,element)) (count u64)) unit
-       (match (foundation.compat.arithmetic:eq count 0)
+       (match (== count (let ((literal u64 0)) literal))
          (true unit)
          (false
-           (match (foundation.compat.arithmetic:eq count 1)
+           (match (== count (let ((literal u64 1)) literal))
              (true (do (store (deref to) (deref from)) unit))
              (false
-               (let ((half u64 (foundation.compat.arithmetic:div count 2)))
+               (let ((half u64 (/ count (let ((literal u64 2)) literal))))
                  (do
                    (,(symbol-concat prefix "-copy-elements") to from half)
                    (,(symbol-concat prefix "-copy-elements")
                     (pointer-offset to half)
                     (pointer-offset from half)
-                    (foundation.compat.arithmetic:sub count half)))))))))
+                    (- count half)))))))))
     `(base:function ,(symbol-concat prefix "-reserve")
        ((owner (pointer (tuple (pointer ,element) u64 u64 array:layout))) (requested u64))
        error:status
        (let
          ((items (tuple (pointer ,element) u64 u64 array:layout) (deref owner))
           (l array:layout (tuple-get items 3)))
-         (match (foundation.compat.arithmetic:le requested (,(symbol-concat prefix "-capacity") items))
+         (match (<= requested (,(symbol-concat prefix "-capacity") items))
            (true (error:success))
            (false
-             (match (foundation.compat.arithmetic:eq (field l size) 0)
+             (match (== (field l size) (let ((literal u64 0)) literal))
                (true (error:invalid))
                (false
                  (match (allocator:checked-multiply-size requested (field l size))
@@ -58,13 +57,13 @@
                             p
                             (tuple-get items 0)
                             (,(symbol-concat prefix "-length") items))
-                           (match (foundation.compat.arithmetic:eq (,(symbol-concat prefix "-capacity") items) 0)
+                           (match (== (,(symbol-concat prefix "-capacity") items) (let ((literal u64 0)) literal))
                              (true unit)
                              (false
                                (allocator:deallocate
                                  (field l allocator)
                                  (cast (pointer u8) (cast (pointer void) (tuple-get items 0)))
-                                 (foundation.compat.arithmetic:mul
+                                 (*
                                    (,(symbol-concat prefix "-capacity") items)
                                    (field l size))
                                  (field l alignment))))
@@ -75,7 +74,7 @@
     `(base:function ,(symbol-concat prefix "-get")
        ((items (tuple (pointer ,element) u64 u64 array:layout)) (i u64))
        (tuple bool (pointer ,element))
-       (match (foundation.compat.arithmetic:lt i (,(symbol-concat prefix "-length") items))
+       (match (< i (,(symbol-concat prefix "-length") items))
          (true (tuple true (pointer-offset (tuple-get items 0) i)))
          (false (tuple false (tuple-get items 0)))))
     `(base:function ,(symbol-concat prefix "-append")
@@ -88,19 +87,19 @@
             (let
               ((target
                  u64
-                 (match (foundation.compat.arithmetic:eq (,(symbol-concat prefix "-capacity") items) 0)
+                 (match (== (,(symbol-concat prefix "-capacity") items) (let ((literal u64 0)) literal))
                    (true 4)
                    (false
                      (match
-                       (foundation.compat.arithmetic:gt
+                       (>
                          (,(symbol-concat prefix "-capacity") items)
-                         (foundation.compat.arithmetic:div (base:maxBound) 2))
+                         (/ (let ((literal u64 (base:maxBound))) literal) (let ((literal u64 2)) literal)))
                        (true count)
-                       (false (foundation.compat.arithmetic:mul (,(symbol-concat prefix "-capacity") items) 2)))))))
+                       (false (* (,(symbol-concat prefix "-capacity") items) (let ((literal u64 2)) literal))))))))
               (match
                 (,(symbol-concat prefix "-reserve")
                  owner
-                 (match (foundation.compat.arithmetic:le count (,(symbol-concat prefix "-capacity") items))
+                 (match (<= count (,(symbol-concat prefix "-capacity") items))
                    (true (,(symbol-concat prefix "-capacity") items))
                    (false target)))
                 ((ok)
@@ -123,18 +122,18 @@
                 (reason reason)))))))
     `(base:function ,(symbol-concat prefix "-shift-right")
        ((p (pointer ,element)) (end u64) (start u64)) unit
-       (match (foundation.compat.arithmetic:eq end start)
+       (match (== end start)
          (true unit)
          (false
            (do
              (store
                (deref (pointer-offset p end))
-               (deref (pointer-offset p (foundation.compat.arithmetic:sub end 1))))
-             (,(symbol-concat prefix "-shift-right") p (foundation.compat.arithmetic:sub end 1) start)))))
+               (deref (pointer-offset p (- end (let ((literal u64 1)) literal)))))
+             (,(symbol-concat prefix "-shift-right") p (- end (let ((literal u64 1)) literal)) start)))))
     `(base:function ,(symbol-concat prefix "-insert")
        ((owner (pointer (tuple (pointer ,element) u64 u64 array:layout))) (i u64) (value ,element))
        error:status
-       (match (foundation.compat.arithmetic:le i (,(symbol-concat prefix "-length") (deref owner)))
+       (match (<= i (,(symbol-concat prefix "-length") (deref owner)))
          (false (error:out-of-bounds))
          (true
            (let ((old u64 (,(symbol-concat prefix "-length") (deref owner))))
@@ -150,19 +149,19 @@
        (let
          ((items (tuple (pointer ,element) u64 u64 array:layout) (deref owner))
           (p (pointer ,element) (tuple-get items 0)))
-         (match (foundation.compat.arithmetic:lt i (,(symbol-concat prefix "-length") items))
+         (match (< i (,(symbol-concat prefix "-length") items))
            (false (error:out-of-bounds))
            (true
              (do
                (,(symbol-concat prefix "-copy-elements")
                 (pointer-offset p i)
-                (pointer-offset p (foundation.compat.arithmetic:add i 1))
-                (foundation.compat.arithmetic:sub (foundation.compat.arithmetic:sub (,(symbol-concat prefix "-length") items) i) 1))
+                (pointer-offset p (+ i (let ((literal u64 1)) literal)))
+                (- (- (,(symbol-concat prefix "-length") items) i) (let ((literal u64 1)) literal)))
                (store
                  (deref owner)
                  (tuple
                    p
-                   (foundation.compat.arithmetic:sub (,(symbol-concat prefix "-length") items) 1)
+                   (- (,(symbol-concat prefix "-length") items) (let ((literal u64 1)) literal))
                    (,(symbol-concat prefix "-capacity") items)
                    (tuple-get items 3)))
                (error:success))))))
@@ -190,13 +189,13 @@
          ((items (tuple (pointer ,element) u64 u64 array:layout) (deref owner))
           (l array:layout (tuple-get items 3)))
          (do
-           (match (foundation.compat.arithmetic:eq (,(symbol-concat prefix "-capacity") items) 0)
+           (match (== (,(symbol-concat prefix "-capacity") items) (let ((literal u64 0)) literal))
              (true unit)
              (false
                (allocator:deallocate
                  (field l allocator)
                  (cast (pointer u8) (cast (pointer void) (tuple-get items 0)))
-                 (foundation.compat.arithmetic:mul (,(symbol-concat prefix "-capacity") items) (field l size))
+                 (* (,(symbol-concat prefix "-capacity") items) (field l size))
                  (field l alignment))))
            (store (deref owner) (,(symbol-concat prefix "-empty") (tuple-get items 0) l))
            unit)))
@@ -225,12 +224,12 @@
        ((items (tuple (pointer ,element) u64 u64 array:layout))
         (i u64)
         (visitor (pointer (function (,element) unit)))) unit
-       (match (foundation.compat.arithmetic:eq i (,(symbol-concat prefix "-length") items))
+       (match (== i (,(symbol-concat prefix "-length") items))
          (true unit)
          (false
            (do
              (visitor (deref (pointer-offset (tuple-get items 0) i)))
-             (,(symbol-concat prefix "-visit-at") items (foundation.compat.arithmetic:add i 1) visitor)))))
+             (,(symbol-concat prefix "-visit-at") items (+ i (let ((literal u64 1)) literal)) visitor)))))
     `(base:function ,(symbol-concat prefix "-visit")
        ((items (tuple (pointer ,element) u64 u64 array:layout))
         (visitor (pointer (function (,element) unit)))) unit

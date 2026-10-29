@@ -1,16 +1,26 @@
 (import base)
 (import testing)
 (import allocator)
-(import foundation.compat.arithmetic)
-(import foundation.compat.arithmetic :as n)
 (import error)
 (import system_allocator :as system)
 (import support)
 (import arena)
 
+(base:constant u64-96 u64 96)
+(base:constant u64-1 u64 1)
+(base:constant u64-64 u64 64)
+(base:constant u64-0 u64 0)
+(base:constant u64-4096 u64 4096)
+(base:constant u64-9 u64 9)
+(base:constant u64-2 u64 2)
+(base:constant u64-32 u64 32)
+(base:constant u64-4129 u64 4129)
+(base:constant u64-192 u64 192)
+(base:constant u64-3168 u64 3168)
+
 (base:function allocate-blocks ((owner (pointer arena:arena)) (i u64) (acc testing:result))
   testing:result
-  (match (n:eq i 96)
+  (match (== i u64-96)
     (true acc)
     (false
       (match (arena:allocate owner 33 64)
@@ -18,18 +28,18 @@
         ((allocated p)
          (do
            (support:fill p 33 0)
-           (allocate-blocks owner (n:add i 1) (testing:checks acc (support:verify p 33 0)))))))))
+           (allocate-blocks owner (+ i u64-1) (testing:checks acc (support:verify p 33 0)))))))))
 
 (base:function reuse-cycles ((owner (pointer arena:arena)) (i u64) (acc testing:result))
   testing:result
-  (match (n:eq i 64)
+  (match (== i u64-64)
     (true acc)
     (false
       (do
         (arena:reset owner)
         (reuse-cycles
           owner
-          (n:add i 1)
+          (+ i u64-1)
           (testing:checks acc (allocate-blocks owner 0 (testing:empty))))))))
 
 (testing:test creation-is-lazy
@@ -38,9 +48,9 @@
       ((observed
          testing:result
          (testing:checks
-           (testing:check (n:eq (arena:used owner) 0))
-           (testing:check (n:eq (arena:capacity owner) 0))
-           (testing:check (n:eq (support:attempts) 0)))))
+           (testing:check (== (arena:used owner) u64-0))
+           (testing:check (== (arena:capacity owner) u64-0))
+           (testing:check (== (support:attempts) u64-0)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test empty-reset-and-repeated-destroy
@@ -52,7 +62,7 @@
            (arena:reset (& owner))
            (arena:destroy (& owner))
            (arena:destroy (& owner))
-           (testing:check (n:eq (support:released) 0)))))
+           (testing:check (== (support:released) u64-0)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test invalid-alignment-leaves-arena-empty
@@ -65,9 +75,9 @@
              (match (arena:allocate (& owner) 10 3)
                ((failed cause) (match cause ((invalid-layout) true) (_ false)))
                (_ false)))
-           (testing:check (n:eq (arena:used owner) 0))
-           (testing:check (n:eq (arena:capacity owner) 0))
-           (testing:check (n:eq (support:attempts) 0)))))
+           (testing:check (== (arena:used owner) u64-0))
+           (testing:check (== (arena:capacity owner) u64-0))
+           (testing:check (== (support:attempts) u64-0)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test metadata-allocation-failure-rolls-back
@@ -82,8 +92,8 @@
                (match (arena:allocate (& owner) 10 8)
                  ((failed cause) (match cause ((out-of-memory) true) (_ false)))
                  (_ false))))
-           (testing:check (n:eq (support:outstanding) 0))
-           (testing:check (n:eq (arena:capacity owner) 0)))))
+           (testing:check (== (support:outstanding) u64-0))
+           (testing:check (== (arena:capacity owner) u64-0)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test payload-allocation-failure-releases-metadata
@@ -98,10 +108,10 @@
                (match (arena:allocate (& owner) 10 8)
                  ((failed cause) (match cause ((out-of-memory) true) (_ false)))
                  (_ false))))
-           (testing:check (n:eq (support:outstanding) 0))
-           (testing:check (n:eq (support:released) 1))
-           (testing:check (n:eq (arena:used owner) 0))
-           (testing:check (n:eq (arena:capacity owner) 0)))))
+           (testing:check (== (support:outstanding) u64-0))
+           (testing:check (== (support:released) u64-1))
+           (testing:check (== (arena:used owner) u64-0))
+           (testing:check (== (arena:capacity owner) u64-0)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test zero-size-consumes-one-byte
@@ -111,7 +121,7 @@
          testing:result
          (testing:checks
            (testing:check (match (arena:allocate (& owner) 0 1) ((allocated p) true) (_ false)))
-           (testing:check (n:eq (arena:used owner) 1)))))
+           (testing:check (== (arena:used owner) u64-1)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test default-capacity-when-initial-is-zero
@@ -121,7 +131,7 @@
          testing:result
          (testing:checks
            (testing:check (match (arena:allocate (& owner) 1 8) ((allocated p) true) (_ false)))
-           (testing:check (n:eq (arena:capacity owner) 4096)))))
+           (testing:check (== (arena:capacity owner) u64-4096)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test padding-is-counted-and-base-alignment-reused
@@ -138,8 +148,8 @@
                 ((allocated second)
                  (testing:checks
                    (testing:check (== second (pointer-offset first 8)))
-                   (testing:check (n:eq (arena:used owner) 9)))))))
-           (testing:check (n:eq (support:attempts) 2)))))
+                   (testing:check (== (arena:used owner) u64-9)))))))
+           (testing:check (== (support:attempts) u64-2)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test exact-fit-keeps-one-segment
@@ -150,8 +160,8 @@
          (testing:checks
            (testing:check (match (arena:allocate (& owner) 16 8) ((allocated p) true) (_ false)))
            (testing:check (match (arena:allocate (& owner) 16 8) ((allocated p) true) (_ false)))
-           (testing:check (n:eq (arena:used owner) 32))
-           (testing:check (n:eq (support:attempts) 2)))))
+           (testing:check (== (arena:used owner) u64-32))
+           (testing:check (== (support:attempts) u64-2)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test growth-preserves-previous-segment-bytes
@@ -171,7 +181,7 @@
                    (do
                      (support:fill second 4097 0)
                      (testing:checks (support:verify first 32 0) (support:verify second 4097 0))))))))
-           (testing:check (n:eq (arena:capacity owner) 4129)))))
+           (testing:check (== (arena:capacity owner) u64-4129)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test growth-failure-preserves-live-allocation
@@ -190,9 +200,9 @@
                   (testing:check
                     (match (arena:allocate (& owner) 100 64) ((failed reason) true) (_ false)))
                   (support:verify first 32 0)))))
-           (testing:check (n:eq (arena:used owner) 32))
-           (testing:check (n:eq (arena:capacity owner) 32))
-           (testing:check (n:eq (support:outstanding) 2)))))
+           (testing:check (== (arena:used owner) u64-32))
+           (testing:check (== (arena:capacity owner) u64-32))
+           (testing:check (== (support:outstanding) u64-2)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test many-segments-and-reset-cycles-reuse-blocks
@@ -202,10 +212,10 @@
          testing:result
          (testing:checks
            (allocate-blocks (& owner) 0 (testing:empty))
-           (testing:check (n:eq (support:attempts) 192))
+           (testing:check (== (support:attempts) u64-192))
            (reuse-cycles (& owner) 0 (testing:empty))
-           (testing:check (n:eq (support:attempts) 192))
-           (testing:check (n:eq (arena:capacity owner) 3168)))))
+           (testing:check (== (support:attempts) u64-192))
+           (testing:check (== (arena:capacity owner) u64-3168)))))
       (do (arena:destroy (& owner)) observed))))
 
 (testing:test destroy-reclaims-all-segments-and-allows-reuse
@@ -215,9 +225,9 @@
          testing:result
          (testing:checks
            (allocate-blocks (& owner) 0 (testing:empty))
-           (do (arena:destroy (& owner)) (testing:check (n:eq (support:outstanding) 0)))
-           (testing:check (n:eq (arena:used owner) 0))
-           (testing:check (n:eq (arena:capacity owner) 0))
+           (do (arena:destroy (& owner)) (testing:check (== (support:outstanding) u64-0)))
+           (testing:check (== (arena:used owner) u64-0))
+           (testing:check (== (arena:capacity owner) u64-0))
            (testing:check (match (arena:allocate (& owner) 4 8) ((allocated p) true) (_ false))))))
       (do (arena:destroy (& owner)) observed))))
 

@@ -1,8 +1,6 @@
 (import base)
 (import testing)
 (import allocator)
-(import foundation.compat.arithmetic)
-(import foundation.compat.arithmetic :as n)
 (import error)
 (import system_allocator :as system)
 (import array)
@@ -11,6 +9,8 @@
 (import arena)
 (import string)
 (import data)
+
+(base:constant u64-42 u64 42)
 
 ; On 64-bit targets: String is 72 bytes; its dictionary slot is 96 bytes.
 (array:define texts string:string)
@@ -27,7 +27,7 @@
   key)
 
 (base:function equal-number ((left u64) (right u64)) bool
-  (n:eq left right))
+  (== left right))
 
 (set:define ids u64 hash-number equal-number 32 8)
 
@@ -63,7 +63,7 @@
                           ((ok)
                            (testing:checks
                              (testing:check (names-get table key (& out)))
-                             (testing:check (n:eq out 42))
+                             (testing:check (== out u64-42))
                              (testing:check (ids-contains numbers 42))
                              (testing:check (data:equal (data:borrow bytes) (data:view "Verona" 6)))))
                           (_ (testing:fail))))

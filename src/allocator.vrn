@@ -1,5 +1,8 @@
-(import foundation.compat.arithmetic :as n)
 (import base)
+
+(base:constant u64-0 u64 0)
+(base:constant u64-1 u64 1)
+(base:constant u64-2 u64 2)
 
 (base:type error (sum (invalid-layout) (overflow) (out-of-memory)))
 
@@ -12,13 +15,13 @@
     (release (pointer (function ((pointer void) (pointer u8) u64 u64) unit)))))
 
 (base:function valid-alignment ((a u64)) bool
-  (match (n:eq a 0)
+  (match (== a u64-0)
     (true false)
     (false
-      (match (n:eq a 1)
+      (match (== a u64-1)
         (true true)
         (false
-          (match (n:eq (n:mul (n:div a 2) 2) a) (true (valid-alignment (n:div a 2))) (false false)))))))
+          (match (== (* (/ a u64-2) u64-2) a) (true (valid-alignment (/ a u64-2))) (false false)))))))
 
 (base:function allocate ((b backend) (size u64) (alignment u64)) result
   (match (valid-alignment alignment)
@@ -32,16 +35,16 @@
     (f (field b context) p size alignment)))
 
 (base:function copy-bytes ((to (pointer u8)) (from (pointer u8)) (n u64)) unit
-  (match (n:eq n 0)
+  (match (== n u64-0)
     (true unit)
     (false
-      (match (n:eq n 1)
+      (match (== n u64-1)
         (true (do (store (deref to) (deref from)) unit))
         (false
-          (let ((half u64 (n:div n 2)))
+          (let ((half u64 (/ n u64-2)))
             (do
               (copy-bytes to from half)
-              (copy-bytes (pointer-offset to half) (pointer-offset from half) (n:sub n half)))))))))
+              (copy-bytes (pointer-offset to half) (pointer-offset from half) (- n half)))))))))
 
 (base:function success ((p (pointer u8))) result
   (allocated p))
@@ -55,23 +58,23 @@
     ((failed e) (failed e))
     ((allocated p)
      (do
-       (copy-bytes p old (match (n:lt old-size new-size) (true old-size) (false new-size)))
+       (copy-bytes p old (match (< old-size new-size) (true old-size) (false new-size)))
        (deallocate b old old-size alignment)
        (success p)))))
 
 ; Checked size arithmetic returns (tuple success value); overflow returns (false, 0).
 (base:function checked-add-size ((a u64) (b u64)) (tuple bool u64)
-  (match (n:gt b (n:sub (base:maxBound) a))
+  (match (> b (- (let ((bound u64 (base:maxBound))) bound) a))
     (true (tuple false 0))
-    (false (tuple true (n:add a b)))))
+    (false (tuple true (+ a b)))))
 
 (base:function checked-multiply-size ((a u64) (b u64)) (tuple bool u64)
-  (match (n:eq a 0)
+  (match (== a u64-0)
     (true (tuple true 0))
     (false
-      (match (n:gt b (n:div (base:maxBound) a))
+      (match (> b (/ (let ((bound u64 (base:maxBound))) bound) a))
         (true (tuple false 0))
-        (false (tuple true (n:mul a b)))))))
+        (false (tuple true (* a b)))))))
 
 (export
   success

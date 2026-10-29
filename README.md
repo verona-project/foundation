@@ -20,7 +20,7 @@ cd projects/foundation
 ../../build/foundation/foundation-example
 ```
 
-`foundation-tests` runs 276 named unit tests and one separate integration test.
+`foundation-tests` runs 250 named unit tests and one separate integration test.
 See [Testing](TESTING.md) for coverage, allocation checks, and selecting a module
 or individual test.
 `foundation-example` runs the arena-backed Array<String>, Dictionary<String,u64>,
@@ -31,7 +31,7 @@ normal Verona consumption interface; it does not declare a C export API.
 Add this package's `src` and `../base/src` to a consumer's module paths. Import
 individual modules explicitly; `foundation.vrn` is the library build aggregator.
 Each file defines its own namespace. Collection macro expansions refer to `base`,
-`array`, `allocator`, `foundation.compat.arithmetic`, and `error`; clients must import those module
+`array`, `allocator`, and `error`; clients must import those module
 names too (aliases alone do not introduce the original qualified names).
 
 ## Memory and lifetime contract
@@ -92,12 +92,8 @@ names too (aliases alone do not introduce the original qualified names).
 | `dictionary` | `define` specialization macro; generated hash table below |
 | `set` | `define` specialization macro reuses Dictionary with a boolean payload |
 
-`foundation.compat.arithmetic` and `foundation.compat.signed_arithmetic` are
-private, temporary compatibility shims. They forward typed u64/i64 calls to the
-existing Base protocols while literal inference and direct operator dispatch
-remain deferred for Base/compiler review. They add no arithmetic semantics or
-checked operations and are not public Foundation APIs. The bundled formatter
-reuses these shims; Base itself is unchanged.
+Arithmetic and comparisons use the existing operators directly. Numeric literals
+and bounds have explicit types where operator dispatch needs them.
 
 A successful mutation returns `error:status` case `(ok)`; errors are sum values.
 Allocator, Number, and Date additionally have module-specific result/error sums.
@@ -139,7 +135,6 @@ Verona currently needs macro specialization for owning collections; see
 ```lisp
 (import base)
 (import allocator)
-(import foundation.compat.arithmetic)
 (import error)
 (import array)
 (import dictionary)
@@ -151,7 +146,7 @@ Verona currently needs macro specialization for owning collections; see
 ; The witness is never dereferenced while length/capacity are zero.
 
 (base:function hash ((key u64)) u64 key)
-(base:function equal ((left u64) (right u64)) bool (foundation.compat.arithmetic:eq left right))
+(base:function equal ((left u64) (right u64)) bool (== left right))
 (dictionary:define scores u64 u64 hash equal 32 8)
 (set:define identifiers u64 hash equal 32 8)
 ```
@@ -228,12 +223,10 @@ All new files are under `projects/foundation/`:
 - `src/data.vrn`, `src/string.vrn`, `src/number.vrn`, `src/date.vrn`, `src/error.vrn`: primitive Foundation APIs.
 - `src/array.vrn`, `src/dictionary.vrn`, `src/set.vrn`: collection specialization and algorithms.
 - `src/foundation.vrn`: build aggregation.
-- `src/foundation.compat.arithmetic.vrn` and `src/foundation.compat.signed_arithmetic.vrn`:
-  temporary private compiler compatibility shims.
 - `tests/test_allocator.vrn`, `tests/test_system_allocator.vrn`, `tests/test_arena.vrn`, `tests/test_data.vrn`,
   `tests/test_string.vrn`, `tests/test_number.vrn`, `tests/test_array.vrn`,
   `tests/test_dictionary.vrn`, `tests/test_set.vrn`, `tests/test_date.vrn`,
-  `tests/test_error.vrn`, `tests/test_compat_arithmetic.vrn`: module and compatibility regression tests.
+  `tests/test_error.vrn`: module regression tests.
 - `tests/support.vrn`, `tests/test_integration.vrn`, `tests/suite.vrn`,
   `tests/example.vrn`: deterministic failing allocator, shared-arena integration,
   complete runner, and executable example.

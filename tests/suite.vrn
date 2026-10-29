@@ -1,6 +1,5 @@
 (import base)
 (import testing)
-(import foundation.compat.arithmetic :as n)
 (import support)
 (import test_allocator :as allocator)
 (import test_system_allocator :as system_allocator)
@@ -14,7 +13,12 @@
 (import test_date :as date)
 (import test_error :as error)
 (import test_integration :as integration)
-(import test_compat_arithmetic :as compat)
+
+(base:constant u64-0 u64 0)
+(base:constant u64-1 u64 1)
+(base:constant u64-10 u64 10)
+(base:constant u64-48 u64 48)
+(base:constant u64-47 u64 47)
 
 (base:external-function puts "puts" ((pointer u8)) i32)
 
@@ -22,9 +26,9 @@
 
 (base:function text-length ((text (pointer u8)) (length u64)) u64
   (let ((value u64 (base:convert (deref text))))
-    (match (n:eq value 0)
+    (match (== value u64-0)
       (true length)
-      (false (text-length (pointer-offset text 1) (n:add length 1))))))
+      (false (text-length (pointer-offset text 1) (+ length u64-1))))))
 
 (base:external-function strncmp "strncmp" ((pointer u8) (pointer u8) u64) i32)
 
@@ -34,7 +38,7 @@
 
 (base:function write-text ((text (pointer u8))) unit
   (let ((value u64 (base:convert (deref text))))
-    (match (n:eq value 0)
+    (match (== value u64-0)
       (true unit)
       (false
         (let ((character i32 (base:convert value)))
@@ -42,19 +46,19 @@
 
 (base:function print-count ((value u64)) unit
   (do
-    (match (n:ge value 10) (true (print-count (n:div value 10))) (false unit))
-    (let ((digit i32 (base:convert (n:add 48 (n:sub value (n:mul (n:div value 10) 10))))))
+    (match (>= value u64-10) (true (print-count (/ value u64-10))) (false unit))
+    (let ((digit i32 (base:convert (+ u64-48 (- value (* (/ value u64-10) u64-10))))))
       (do (putchar digit) unit))))
 
 (base:function matches ((name (pointer u8))) bool
   (let ((length u64 (text-length selection 0)))
-    (match (n:eq length 0)
+    (match (== length u64-0)
       (true true)
       (false
         (match (strncmp name selection length)
           (0
             (let ((next u64 (base:convert (deref (pointer-offset name length)))))
-              (match (n:eq next 0) (true true) (false (n:eq next 47)))))
+              (match (== next u64-0) (true true) (false (== next u64-47)))))
           (_ false))))))
 
 (base:function run-case ((name (pointer u8)) (test testing:test-function)) testing:result
@@ -68,8 +72,8 @@
          (result testing:result (testing:checks before body after))
          (failed u64 (base:convert (field result failed))))
         (do
-          (assign selected (n:add selected 1))
-          (match (n:eq failed 0) (true unit) (false (do (write-text "FAIL ") (puts name) unit)))
+          (assign selected (+ selected u64-1))
+          (match (== failed u64-0) (true unit) (false (do (write-text "FAIL ") (puts name) unit)))
           result)))))
 
 (base:function main ((argc i32) (argv (pointer (pointer u8)))) exit-code
@@ -339,39 +343,13 @@
      (arguments u64 (base:convert argc))
      (configured
        unit
-       (match (n:gt arguments 1)
+       (match (> arguments u64-1)
          (true (do (assign selection (deref (pointer-offset argv 1))) unit))
          (false unit)))
      (result
        testing:result
        (testing:checks
-         (run-case "compat/unsigned-add" compat:unsigned-add)
-          (run-case "compat/unsigned-subtract" compat:unsigned-subtract)
-          (run-case "compat/unsigned-multiply" compat:unsigned-multiply)
-          (run-case "compat/unsigned-divide" compat:unsigned-divide)
-          (run-case "compat/unsigned-high-bit" compat:unsigned-high-bit)
-          (run-case "compat/unsigned-maximum" compat:unsigned-maximum)
-          (run-case "compat/unsigned-eq-true" compat:unsigned-eq-true)
-          (run-case "compat/unsigned-lt-true" compat:unsigned-lt-true)
-          (run-case "compat/unsigned-gt-true" compat:unsigned-gt-true)
-          (run-case "compat/unsigned-le-true" compat:unsigned-le-true)
-          (run-case "compat/unsigned-ge-true" compat:unsigned-ge-true)
-          (run-case "compat/unsigned-eq-false" compat:unsigned-eq-false)
-          (run-case "compat/unsigned-lt-false" compat:unsigned-lt-false)
-          (run-case "compat/unsigned-gt-false" compat:unsigned-gt-false)
-          (run-case "compat/unsigned-le-false" compat:unsigned-le-false)
-          (run-case "compat/unsigned-ge-false" compat:unsigned-ge-false)
-          (run-case "compat/signed-add" compat:signed-add)
-          (run-case "compat/signed-subtract" compat:signed-subtract)
-          (run-case "compat/signed-minimum" compat:signed-minimum)
-          (run-case "compat/signed-maximum" compat:signed-maximum)
-          (run-case "compat/signed-eq-true" compat:signed-eq-true)
-          (run-case "compat/signed-lt-true" compat:signed-lt-true)
-          (run-case "compat/signed-gt-true" compat:signed-gt-true)
-          (run-case "compat/signed-eq-false" compat:signed-eq-false)
-          (run-case "compat/signed-lt-false" compat:signed-lt-false)
-          (run-case "compat/signed-gt-false" compat:signed-gt-false)
-          (run-case "allocator/alignment-one" allocator:alignment-one)
+         (run-case "allocator/alignment-one" allocator:alignment-one)
          (run-case "allocator/alignment-zero-rejected" allocator:alignment-zero-rejected)
          (run-case "allocator/odd-alignment-rejected" allocator:odd-alignment-rejected)
          (run-case "allocator/even-non-power-rejected" allocator:even-non-power-rejected)
@@ -808,7 +786,7 @@
            "error/context-preserves-code-and-borrowed-messages"
            error:context-preserves-code-and-borrowed-messages)
          (run-case "integration/shared-arena-collections" integration:shared-arena-collections))))
-    (match (n:eq selected 0)
+    (match (== selected u64-0)
       (true (do (puts "Foundation: no tests matched selector") 2))
       (false
         ; Normalize the exit code so 256 failed checks cannot wrap back to success.

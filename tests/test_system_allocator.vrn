@@ -1,11 +1,13 @@
 (import base)
 (import testing)
 (import allocator)
-(import foundation.compat.arithmetic)
-(import foundation.compat.arithmetic :as n)
 (import error)
 (import system_allocator :as system)
 (import support)
+
+(base:constant u64-512 u64 512)
+(base:constant u64-1 u64 1)
+(base:constant u64-73 u64 73)
 
 (base:function exercise ((size u64) (alignment u64)) testing:result
   (match (allocator:allocate (support:backend) size alignment)
@@ -17,10 +19,10 @@
          (do (allocator:deallocate (support:backend) p size alignment) result))))))
 
 (base:function cycle ((i u64) (acc testing:result)) testing:result
-  (match (n:eq i 512)
+  (match (== i u64-512)
     (true acc)
     (false
-      (cycle (n:add i 1) (testing:checks acc (exercise (support:remainder (n:mul i 73) 2049) 64))))))
+      (cycle (+ i u64-1) (testing:checks acc (exercise (support:remainder (* i u64-73) 2049) 64))))))
 
 (testing:test alignment-1-allocation
   (exercise 513 1))
@@ -54,8 +56,8 @@
 
 (testing:test many-native-allocation-free-cycles
   (cycle 0 (testing:empty))
-  (testing:check (n:eq (support:attempts) 512))
-  (testing:check (n:eq (support:released) 512)))
+  (testing:check (== (support:attempts) u64-512))
+  (testing:check (== (support:released) u64-512)))
 
 (export
   alignment-1-allocation

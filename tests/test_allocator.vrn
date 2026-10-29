@@ -1,11 +1,17 @@
 (import base)
 (import testing)
 (import allocator)
-(import foundation.compat.arithmetic)
-(import foundation.compat.arithmetic :as n)
 (import error)
 (import system_allocator :as system)
 (import support)
+
+(base:constant u64-2 u64 2)
+(base:constant u64-1 u64 1)
+(base:constant u64-0 u64 0)
+(base:constant u64-18446744065119617025 u64 18446744065119617025)
+(base:constant u64-81 u64 81)
+(base:constant u64-32 u64 32)
+(base:constant u64-8 u64 8)
 
 (base:function u32-maximum-as-u64 () u64
   (let ((limit u32 (base:maxBound))) (base:convert limit)))
@@ -23,39 +29,39 @@
   (testing:check (match (allocator:valid-alignment 24) (true false) (false true))))
 
 (testing:test largest-power-alignment
-  (testing:check (allocator:valid-alignment (n:add (n:div (base:maxBound) 2) 1))))
+  (testing:check (allocator:valid-alignment (+ (/ (let ((bound u64 (base:maxBound))) bound) u64-2) u64-1))))
 
 (testing:test add-zero
-  (testing:check (match (allocator:checked-add-size 0 0) ((tuple true value) (n:eq value 0)) (_ false))))
+  (testing:check (match (allocator:checked-add-size 0 0) ((tuple true value) (== value u64-0)) (_ false))))
 
 (testing:test add-at-maximum
   (testing:check
-    (match (allocator:checked-add-size (n:sub (base:maxBound) 1) 1)
-      ((tuple true value) (n:eq value (base:maxBound)))
+    (match (allocator:checked-add-size (- (let ((bound u64 (base:maxBound))) bound) u64-1) 1)
+      ((tuple true value) (== value (let ((bound u64 (base:maxBound))) bound)))
       (_ false))))
 
 (testing:test multiply-zero-left
   (testing:check
     (match (allocator:checked-multiply-size 0 (base:maxBound))
-      ((tuple true value) (n:eq value 0))
+      ((tuple true value) (== value u64-0))
       (_ false))))
 
 (testing:test multiply-zero-right
   (testing:check
     (match (allocator:checked-multiply-size (base:maxBound) 0)
-      ((tuple true value) (n:eq value 0))
+      ((tuple true value) (== value u64-0))
       (_ false))))
 
 (testing:test multiply-at-maximum
   (testing:check
     (match (allocator:checked-multiply-size (base:maxBound) 1)
-      ((tuple true value) (n:eq value (base:maxBound)))
+      ((tuple true value) (== value (let ((bound u64 (base:maxBound))) bound)))
       (_ false))))
 
 (testing:test multiply-boundary
   (testing:check
     (match (allocator:checked-multiply-size (u32-maximum-as-u64) (u32-maximum-as-u64))
-      ((tuple true value) (n:eq value 18446744065119617025))
+      ((tuple true value) (== value u64-18446744065119617025))
       (_ false))))
 
 (testing:test add-overflow
@@ -63,14 +69,14 @@
 
 (testing:test multiply-overflow
   (testing:check
-    (match (allocator:checked-multiply-size (n:add (u32-maximum-as-u64) 1) (n:add (u32-maximum-as-u64) 1)) ((tuple false _) true) (_ false))))
+    (match (allocator:checked-multiply-size (+ (u32-maximum-as-u64) u64-1) (+ (u32-maximum-as-u64) u64-1)) ((tuple false _) true) (_ false))))
 
 (testing:test invalid-layout-never-calls-backend
   (testing:check
     (match (allocator:allocate (support:backend) 8 3)
       ((failed cause) (match cause ((invalid-layout) true) (_ false)))
       (_ false)))
-  (testing:check (n:eq (support:attempts) 0)))
+  (testing:check (== (support:attempts) u64-0)))
 
 (testing:test allocation-failure-is-explicit
   (do
@@ -79,8 +85,8 @@
       (match (allocator:allocate (support:backend) 81 32)
         ((failed cause) (match cause ((out-of-memory) true) (_ false)))
         (_ false))))
-  (testing:check (n:eq (support:last-size) 81))
-  (testing:check (n:eq (support:last-alignment) 32)))
+  (testing:check (== (support:last-size) u64-81))
+  (testing:check (== (support:last-alignment) u64-32)))
 
 (testing:test resize-grow-preserves-entire-prefix
   (match (allocator:allocate (support:backend) 257 64)
@@ -150,7 +156,7 @@
          testing:result
          (do
            (allocator:copy-bytes (& (index destination 1)) "abc" 0)
-           (testing:check (n:eq (base:convert (index destination 1)) 8)))))
+           (testing:check (== (let ((converted u64 (base:convert (index destination 1)))) converted) u64-8)))))
       (do observed))))
 
 (export

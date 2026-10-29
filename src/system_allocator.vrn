@@ -1,6 +1,8 @@
-(import foundation.compat.arithmetic :as n)
 (import base)
 (import allocator :as a)
+
+(base:constant u64-8 u64 8)
+(base:constant u64-0 u64 0)
 
 (base:external-function aligned "posix_memalign" ((pointer (pointer void)) u64 u64) i32)
 
@@ -14,8 +16,8 @@
     (match
       (aligned
         (& out)
-        (match (n:lt alignment 8) (true 8) (false alignment))
-        (match (n:eq size 0) (true 1) (false size)))
+        (match (< alignment u64-8) (true 8) (false alignment))
+        (match (== size u64-0) (true 1) (false size)))
       (0 (a:success (cast (pointer u8) out)))
       (_ (a:failure (oom))))))
 

@@ -1,6 +1,6 @@
 # Foundation tests
 
-The native suite has 276 independently named unit tests and one separate
+The native suite has 250 independently named unit tests and one separate
 shared-arena integration test. Each behavior has its own `testing:test`
 declaration, fresh resources, and explicit teardown. Expression-level groups use `testing:checks`; aggregation trees are generated
 by the testing library rather than repeated in test bodies.
@@ -15,7 +15,6 @@ From the repository root:
 ```sh
 make test-foundation
 ./build/foundation/foundation-tests array
-./build/foundation/foundation-tests compat
 ./build/foundation/foundation-tests array/append-4096-elements-verifies-every-value
 ./build/foundation/foundation-tests dictionary/mixed-operations-match-independent-model
 make test
@@ -43,7 +42,6 @@ case; it is not a replacement for module tests.
 | Set | 12 | 512 colliding values, duplicate uniqueness, deletion/reinsertion, clear/reuse, visitor uniqueness, failure preservation, numeric extremes, direct membership model comparison |
 | Date | 26 | Epoch comparisons, signed minimum/maximum duration arithmetic, both overflow directions, subtraction of minimum duration, forward/reverse elapsed time, 8,193 arithmetic cases, wall-clock smoke check |
 | Error | 7 | Exact descriptions for every status, preservation of allocation causes, contextual code/messages |
-| Compatibility shims | 26 | Typed u64/i64 forwarding through existing Base protocols, comparisons, and numeric boundaries |
 | Integration | 1 | Array<String>, Dictionary<String,u64>, Set<u64>, and mutable Data sharing one arena |
 
 Dictionary stress executes 4,096 deterministic mixed operations against a

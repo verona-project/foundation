@@ -1,12 +1,14 @@
 (import base)
 (import allocator)
-(import foundation.compat.arithmetic)
 (import error)
 (import array)
 (import allocator :as a)
 (import array :as ar)
-(import foundation.compat.arithmetic :as n)
 (import error :as e)
+
+(base:constant u64-0 u64 0)
+(base:constant u64-1 u64 1)
+(base:constant u64-2 u64 2)
 
 (ar:define byte u8)
 
@@ -27,22 +29,22 @@
   (view (bytes value) (length value)))
 
 (base:function slice ((value view) (start u64) (count u64)) (tuple bool view)
-  (match (n:le start (field value length))
+  (match (<= start (field value length))
     (false (tuple false value))
     (true
-      (match (n:le count (n:sub (field value length) start))
+      (match (<= count (- (field value length) start))
         (false (tuple false value))
         (true (tuple true (view (pointer-offset (field value bytes) start) count)))))))
 
 (base:function fill ((p (pointer u8)) (count u64)) unit
-  (match (n:eq count 0)
+  (match (== count u64-0)
     (true unit)
     (false
-      (match (n:eq count 1)
+      (match (== count u64-1)
         (true (do (store (deref p) 0) unit))
         (false
-          (let ((half u64 (n:div count 2)))
-            (do (fill p half) (fill (pointer-offset p half) (n:sub count half)))))))))
+          (let ((half u64 (/ count u64-2)))
+            (do (fill p half) (fill (pointer-offset p half) (- count half)))))))))
 
 (base:function reserve ((owner (pointer data)) (capacity u64)) e:status
   (byte-reserve owner capacity))
@@ -52,8 +54,8 @@
     ((ok)
      (let ((value data (deref owner)))
        (do
-         (match (n:gt count (length value))
-           (true (fill (pointer-offset (bytes value) (length value)) (n:sub count (length value))))
+         (match (> count (length value))
+           (true (fill (pointer-offset (bytes value) (length value)) (- count (length value))))
            (false unit))
          (store (deref owner) (tuple (bytes value) count (byte-capacity value) (tuple-get value 3)))
          (e:success))))
@@ -74,25 +76,25 @@
   (byte-copy-into source out))
 
 (base:function equal-bytes ((left (pointer u8)) (right (pointer u8)) (count u64)) bool
-  (match (n:eq count 0)
+  (match (== count u64-0)
     (true true)
     (false
-      (match (n:eq count 1)
+      (match (== count u64-1)
         (true
           (let ((x u64 (base:convert (deref left))) (y u64 (base:convert (deref right))))
-            (n:eq x y)))
+            (== x y)))
         (false
-          (let ((half u64 (n:div count 2)))
+          (let ((half u64 (/ count u64-2)))
             (match (equal-bytes left right half)
               (false false)
               (true
                 (equal-bytes
                   (pointer-offset left half)
                   (pointer-offset right half)
-                  (n:sub count half))))))))))
+                  (- count half))))))))))
 
 (base:function equal ((left view) (right view)) bool
-  (match (n:eq (field left length) (field right length))
+  (match (== (field left length) (field right length))
     (false false)
     (true (equal-bytes (field left bytes) (field right bytes) (field left length)))))
 

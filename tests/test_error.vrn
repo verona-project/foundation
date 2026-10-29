@@ -1,13 +1,12 @@
 (import base)
 (import testing)
 (import allocator)
-(import foundation.compat.arithmetic)
-(import foundation.compat.arithmetic :as n)
 (import error)
 (import system_allocator :as system)
 (import support)
 (import data)
-(import foundation.compat.signed_arithmetic :as signed)
+
+(base:constant i64-73 i64 73)
 
 (base:external-function strlen "strlen" ((pointer u8)) u64)
 
@@ -15,7 +14,7 @@
   testing:result
   (let ((description (pointer u8) (error:description value)))
     (testing:checks
-      (testing:check (n:eq (strlen description) length))
+      (testing:check (== (strlen description) length))
       (testing:check (data:equal (data:view description length) (data:view expected length))))))
 
 (base:function oom () allocator:error
@@ -45,7 +44,7 @@
 (testing:test context-preserves-code-and-borrowed-messages
   (let ((value error:context (error:context 73 "failure" "request 42")))
     (testing:checks
-      (testing:check (signed:eq (base:convert (field value code)) 73))
+      (testing:check (== (let ((converted i64 (base:convert (field value code)))) converted) i64-73))
       (testing:check (data:equal (data:view (field value description) 7) (data:view "failure" 7)))
       (testing:check (data:equal (data:view (field value detail) 10) (data:view "request 42" 10))))))
 
