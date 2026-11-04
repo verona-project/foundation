@@ -5,31 +5,30 @@
 (import error)
 
 (base:macro define (prefix key value hash equal size alignment)
-  (definitions
-    `(base:type ,(symbol-concat prefix "-slot") (sum (vacant) (deleted) (occupied ,key ,value u64)))
-    `(array:define ,(symbol-concat prefix "-slots") ,(symbol-concat prefix "-slot"))
-    `(base:type ,(symbol-concat prefix "-table")
+  `((base:type ,(symbol-concat prefix "-slot") (sum (vacant) (deleted) (occupied ,key ,value u64)))
+    (array:define ,(symbol-concat prefix "-slots") ,(symbol-concat prefix "-slot"))
+    (base:type ,(symbol-concat prefix "-table")
        (product
          (storage (tuple (pointer ,(symbol-concat prefix "-slot")) u64 u64 array:layout))
          (count u64)))
-    `(base:function ,(symbol-concat prefix "-empty") ((backing allocator:backend))
+    (base:function ,(symbol-concat prefix "-empty") ((backing allocator:backend))
        ,(symbol-concat prefix "-table")
        (,(symbol-concat prefix "-table")
         (,(symbol-concat prefix "-slots-empty")
          (cast (pointer ,(symbol-concat prefix "-slot")) (cast (pointer void) ""))
          (array:layout ,size ,alignment backing))
         0))
-    `(base:function ,(symbol-concat prefix "-count") ((table ,(symbol-concat prefix "-table"))) u64
+    (base:function ,(symbol-concat prefix "-count") ((table ,(symbol-concat prefix "-table"))) u64
        (field table count))
-    `(base:function ,(symbol-concat prefix "-capacity") ((table ,(symbol-concat prefix "-table")))
+    (base:function ,(symbol-concat prefix "-capacity") ((table ,(symbol-concat prefix "-table")))
        u64
        (,(symbol-concat prefix "-slots-capacity") (field table storage)))
-    `(base:function ,(symbol-concat prefix "-slot-at")
+    (base:function ,(symbol-concat prefix "-slot-at")
        ((table ,(symbol-concat prefix "-table")) (i u64)) (pointer ,(symbol-concat prefix "-slot"))
        (pointer-offset (tuple-get (field table storage) 0) i))
-    `(base:function ,(symbol-concat prefix "-next") ((i u64) (capacity u64)) u64
+    (base:function ,(symbol-concat prefix "-next") ((i u64) (capacity u64)) u64
        (match (foundation.compat.arithmetic:eq (foundation.compat.arithmetic:add i 1) capacity) (true 0) (false (foundation.compat.arithmetic:add i 1))))
-    `(base:function ,(symbol-concat prefix "-lookup-at")
+    (base:function ,(symbol-concat prefix "-lookup-at")
        ((table ,(symbol-concat prefix "-table")) (key ,key) (hash u64) (i u64) (remaining u64))
        (tuple bool u64)
        (match (foundation.compat.arithmetic:eq remaining 0)
@@ -65,7 +64,7 @@
                         i
                         (,(symbol-concat prefix "-capacity") table))
                        (foundation.compat.arithmetic:sub remaining 1)))))))))))
-    `(base:function ,(symbol-concat prefix "-lookup")
+    (base:function ,(symbol-concat prefix "-lookup")
        ((table ,(symbol-concat prefix "-table")) (key ,key)) (tuple bool u64)
        (match (foundation.compat.arithmetic:eq (,(symbol-concat prefix "-capacity") table) 0)
          (true (tuple false 0))
@@ -81,7 +80,7 @@
                   (foundation.compat.arithmetic:div hash (,(symbol-concat prefix "-capacity") table))
                   (,(symbol-concat prefix "-capacity") table)))
               (,(symbol-concat prefix "-capacity") table))))))
-    `(base:function ,(symbol-concat prefix "-get")
+    (base:function ,(symbol-concat prefix "-get")
        ((table ,(symbol-concat prefix "-table")) (key ,key) (output (pointer ,value))) bool
        (match (,(symbol-concat prefix "-lookup") table key)
          ((tuple false _) false)
@@ -89,10 +88,10 @@
           (match (deref (,(symbol-concat prefix "-slot-at") table i))
             ((occupied stored value hash) (do (store (deref output) value) true))
             (_ false)))))
-    `(base:function ,(symbol-concat prefix "-contains")
+    (base:function ,(symbol-concat prefix "-contains")
        ((table ,(symbol-concat prefix "-table")) (key ,key)) bool
        (tuple-get (,(symbol-concat prefix "-lookup") table key) 0))
-    `(base:function ,(symbol-concat prefix "-vacancy")
+    (base:function ,(symbol-concat prefix "-vacancy")
        ((table ,(symbol-concat prefix "-table")) (i u64) (remaining u64)) u64
        (match (foundation.compat.arithmetic:eq remaining 0)
          (true i)
@@ -104,7 +103,7 @@
                (,(symbol-concat prefix "-next") i (,(symbol-concat prefix "-capacity") table))
                (foundation.compat.arithmetic:sub remaining 1)))
              (_ i)))))
-    `(base:function ,(symbol-concat prefix "-put-raw")
+    (base:function ,(symbol-concat prefix "-put-raw")
        ((owner (pointer ,(symbol-concat prefix "-table"))) (key ,key) (value ,value) (hash u64))
        unit
        (let
@@ -128,7 +127,7 @@
               (field table storage)
               (foundation.compat.arithmetic:add (,(symbol-concat prefix "-count") table) 1)))
            unit)))
-    `(base:function ,(symbol-concat prefix "-initialize")
+    (base:function ,(symbol-concat prefix "-initialize")
        ((table ,(symbol-concat prefix "-table")) (i u64)) unit
        (match (foundation.compat.arithmetic:eq i (,(symbol-concat prefix "-capacity") table))
          (true unit)
@@ -137,7 +136,7 @@
              (do
                (store (deref (,(symbol-concat prefix "-slot-at") table i)) empty)
                (,(symbol-concat prefix "-initialize") table (foundation.compat.arithmetic:add i 1)))))))
-    `(base:function ,(symbol-concat prefix "-rehash")
+    (base:function ,(symbol-concat prefix "-rehash")
        ((old ,(symbol-concat prefix "-table"))
         (fresh (pointer ,(symbol-concat prefix "-table")))
         (i u64)) unit
@@ -149,7 +148,7 @@
                ((occupied key value hash) (,(symbol-concat prefix "-put-raw") fresh key value hash))
                (_ unit))
              (,(symbol-concat prefix "-rehash") old fresh (foundation.compat.arithmetic:add i 1))))))
-    `(base:function ,(symbol-concat prefix "-grow")
+    (base:function ,(symbol-concat prefix "-grow")
        ((owner (pointer ,(symbol-concat prefix "-table")))) error:status
        (let
          ((old ,(symbol-concat prefix "-table") (deref owner))
@@ -187,7 +186,7 @@
                       (store (deref owner) new)
                       (error:success))))
                  (reason reason)))))))
-    `(base:function ,(symbol-concat prefix "-insert")
+    (base:function ,(symbol-concat prefix "-insert")
        ((owner (pointer ,(symbol-concat prefix "-table"))) (key ,key) (value ,value)) error:status
        (match (,(symbol-concat prefix "-lookup") (deref owner) key)
          ((tuple true i)
@@ -206,7 +205,7 @@
             ((ok)
              (do (,(symbol-concat prefix "-put-raw") owner key value (,hash key)) (error:success)))
             (reason reason)))))
-    `(base:function ,(symbol-concat prefix "-remove")
+    (base:function ,(symbol-concat prefix "-remove")
        ((owner (pointer ,(symbol-concat prefix "-table"))) (key ,key)) bool
        (match (,(symbol-concat prefix "-lookup") (deref owner) key)
          ((tuple false _) false)
@@ -222,13 +221,13 @@
                  (field table storage)
                  (foundation.compat.arithmetic:sub (,(symbol-concat prefix "-count") table) 1)))
               true)))))
-    `(base:function ,(symbol-concat prefix "-clear")
+    (base:function ,(symbol-concat prefix "-clear")
        ((owner (pointer ,(symbol-concat prefix "-table")))) unit
        (do
          (,(symbol-concat prefix "-initialize") (deref owner) 0)
          (store (deref owner) (,(symbol-concat prefix "-table") (field (deref owner) storage) 0))
          unit))
-    `(base:function ,(symbol-concat prefix "-visit-at")
+    (base:function ,(symbol-concat prefix "-visit-at")
        ((table ,(symbol-concat prefix "-table"))
         (i u64)
         (visitor (pointer (function (,key ,value) unit)))) unit
@@ -240,11 +239,11 @@
                ((occupied key value hash) (visitor key value))
                (_ unit))
              (,(symbol-concat prefix "-visit-at") table (foundation.compat.arithmetic:add i 1) visitor)))))
-    `(base:function ,(symbol-concat prefix "-visit")
+    (base:function ,(symbol-concat prefix "-visit")
        ((table ,(symbol-concat prefix "-table")) (visitor (pointer (function (,key ,value) unit))))
        unit
        (,(symbol-concat prefix "-visit-at") table 0 visitor))
-    `(base:function ,(symbol-concat prefix "-destroy")
+    (base:function ,(symbol-concat prefix "-destroy")
        ((owner (pointer ,(symbol-concat prefix "-table")))) unit
        (let
          ((storage
