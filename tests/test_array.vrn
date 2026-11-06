@@ -206,8 +206,7 @@
          testing:result
          (testing:checks
            (populate (& items) 0 3)
-           (testing:check
-             (match (ints-get items (base:maxBound)) ((tuple false _) true) (_ false)))
+           (testing:check (match (ints-get items (base:maxBound)) ((tuple false _) true) (_ false)))
            (verify items 0 3))))
       (do (ints-destroy (& items)) observed))))
 

@@ -26,7 +26,8 @@
   (testing:check (allocator:valid-alignment (n:add (n:div (base:maxBound) 2) 1))))
 
 (testing:test add-zero
-  (testing:check (match (allocator:checked-add-size 0 0) ((tuple true value) (n:eq value 0)) (_ false))))
+  (testing:check
+    (match (allocator:checked-add-size 0 0) ((tuple true value) (n:eq value 0)) (_ false))))
 
 (testing:test add-at-maximum
   (testing:check
@@ -59,11 +60,17 @@
       (_ false))))
 
 (testing:test add-overflow
-  (testing:check (match (allocator:checked-add-size (base:maxBound) 1) ((tuple false _) true) (_ false))))
+  (testing:check
+    (match (allocator:checked-add-size (base:maxBound) 1) ((tuple false _) true) (_ false))))
 
 (testing:test multiply-overflow
   (testing:check
-    (match (allocator:checked-multiply-size (n:add (u32-maximum-as-u64) 1) (n:add (u32-maximum-as-u64) 1)) ((tuple false _) true) (_ false))))
+    (match
+      (allocator:checked-multiply-size
+        (n:add (u32-maximum-as-u64) 1)
+        (n:add (u32-maximum-as-u64) 1))
+      ((tuple false _) true)
+      (_ false))))
 
 (testing:test invalid-layout-never-calls-backend
   (testing:check

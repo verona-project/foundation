@@ -30,8 +30,7 @@
   (testing:check (date:before (date:instant -1) (date:instant 0))))
 
 (testing:test before-minimum-to-maximum
-  (testing:check
-    (date:before (date:instant (base:minBound)) (date:instant (base:maxBound)))))
+  (testing:check (date:before (date:instant (base:minBound)) (date:instant (base:maxBound)))))
 
 (testing:test equal-instants-are-not-before
   (testing:check
@@ -97,21 +96,15 @@
 
 (testing:test addition-positive-overflow
   (testing:check
-    (match (date:add (date:instant (base:maxBound)) (date:duration 1))
-      ((overflow) true)
-      (_ false))))
+    (match (date:add (date:instant (base:maxBound)) (date:duration 1)) ((overflow) true) (_ false))))
 
 (testing:test addition-negative-overflow
   (testing:check
-    (match (date:add (date:instant (base:minBound)) (date:duration -1))
-      ((overflow) true)
-      (_ false))))
+    (match (date:add (date:instant (base:minBound)) (date:duration -1)) ((overflow) true) (_ false))))
 
 (testing:test addition-minimum-duration-overflow
   (testing:check
-    (match (date:add (date:instant -1) (date:duration (base:minBound)))
-      ((overflow) true)
-      (_ false))))
+    (match (date:add (date:instant -1) (date:duration (base:minBound))) ((overflow) true) (_ false))))
 
 (testing:test subtraction-positive-overflow
   (testing:check

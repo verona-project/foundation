@@ -109,7 +109,8 @@
       (_ false))))
 
 (testing:test checked-conversion-above-signed-maximum
-  (testing:check (match (number:to-i64 (n:add (signed-maximum-as-u64) 1)) ((overflow) true) (_ false))))
+  (testing:check
+    (match (number:to-i64 (n:add (signed-maximum-as-u64) 1)) ((overflow) true) (_ false))))
 
 (testing:test checked-conversion-unsigned-maximum
   (testing:check (match (number:to-i64 (base:maxBound)) ((overflow) true) (_ false))))
@@ -211,8 +212,7 @@
       ((observed
          testing:result
          (testing:checks
-           (testing:check
-             (match (number:format-u64 (base:maxBound) (& out)) ((ok) true) (_ false)))
+           (testing:check (match (number:format-u64 (base:maxBound) (& out)) ((ok) true) (_ false)))
            (testing:check (data:equal (data:borrow out) (data:view "18446744073709551615" 20))))))
       (do (data:destroy (& out)) observed))))
 
@@ -222,8 +222,7 @@
       ((observed
          testing:result
          (testing:checks
-           (testing:check
-             (match (number:format-u64 (base:maxBound) (& out)) ((ok) true) (_ false)))
+           (testing:check (match (number:format-u64 (base:maxBound) (& out)) ((ok) true) (_ false)))
            (testing:check (match (number:format-u64 7 (& out)) ((ok) true) (_ false)))
            (testing:check (data:equal (data:borrow out) (data:view "7" 1))))))
       (do (data:destroy (& out)) observed))))

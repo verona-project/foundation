@@ -150,15 +150,11 @@
 
 (testing:test slice-overflow-sized-count
   (testing:check
-    (match (data:slice (data:view "abcdef" 6) 1 (base:maxBound))
-      ((tuple false _) true)
-      (_ false))))
+    (match (data:slice (data:view "abcdef" 6) 1 (base:maxBound)) ((tuple false _) true) (_ false))))
 
 (testing:test slice-overflow-sized-start
   (testing:check
-    (match (data:slice (data:view "abcdef" 6) (base:maxBound) 1)
-      ((tuple false _) true)
-      (_ false))))
+    (match (data:slice (data:view "abcdef" 6) (base:maxBound) 1) ((tuple false _) true) (_ false))))
 
 (testing:test equality-rejects-prefix-only-match
   (testing:check

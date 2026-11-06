@@ -61,9 +61,7 @@
 
 ; Checked size arithmetic returns (tuple success value); overflow returns (false, 0).
 (base:function checked-add-size ((a u64) (b u64)) (tuple bool u64)
-  (match (n:gt b (n:sub (base:maxBound) a))
-    (true (tuple false 0))
-    (false (tuple true (n:add a b)))))
+  (match (n:gt b (n:sub (base:maxBound) a)) (true (tuple false 0)) (false (tuple true (n:add a b)))))
 
 (base:function checked-multiply-size ((a u64) (b u64)) (tuple bool u64)
   (match (n:eq a 0)

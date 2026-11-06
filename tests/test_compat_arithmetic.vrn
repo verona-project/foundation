@@ -16,7 +16,8 @@
   (testing:check (u:eq (u:div 85 2) 42)))
 
 (testing:test unsigned-high-bit
-  (testing:check (u:eq (u:add (u:add (u:div (base:maxBound) 2) 1) 1) (u:add (u:div (base:maxBound) 2) 2))))
+  (testing:check
+    (u:eq (u:add (u:add (u:div (base:maxBound) 2) 1) 1) (u:add (u:div (base:maxBound) 2) 2))))
 
 (testing:test unsigned-maximum
   (testing:check (u:eq (u:sub (base:maxBound) 0) (base:maxBound))))
