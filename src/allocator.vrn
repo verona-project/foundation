@@ -1,15 +1,19 @@
 (import base)
 
+;; Allocation failure categories returned by this module.
 (base:type error (sum (invalid-layout) (overflow) (out-of-memory)))
 
+;; Result of an allocation request; only `allocated` contains usable storage.
 (base:type result (sum (allocated (pointer u8)) (failed error)))
 
+;; Caller-provided allocation context and matching acquire/release callbacks.
 (base:type backend
   (product
     (context (pointer void))
     (acquire (pointer (function ((pointer void) u64 u64) result)))
     (release (pointer (function ((pointer void) (pointer u8) u64 u64) unit)))))
 
+;; True exactly for a nonzero power-of-two alignment.
 (base:function valid-alignment ((a u64)) bool
   (match (== a 0)
     (true false)
@@ -19,6 +23,7 @@
         (false
           (match (== (* (/ a 2) 2) a) (true (valid-alignment (/ a 2))) (false false)))))))
 
+;; Acquire SIZE bytes with ALIGNMENT through BACKEND.
 (base:function allocate ((b backend) (size u64) (alignment u64)) result
   (match (valid-alignment alignment)
     (false (failed (invalid-layout)))
@@ -26,10 +31,12 @@
       (let ((f (pointer (function ((pointer void) u64 u64) result)) (field b acquire)))
         (f (field b context) size alignment)))))
 
+;; Release an allocation using the original backend, size, and alignment.
 (base:function deallocate ((b backend) (p (pointer u8)) (size u64) (alignment u64)) unit
   (let ((f (pointer (function ((pointer void) (pointer u8) u64 u64) unit)) (field b release)))
     (f (field b context) p size alignment)))
 
+;; Copy N non-overlapping bytes from FROM to TO.
 (base:function copy-bytes ((to (pointer u8)) (from (pointer u8)) (n u64)) unit
   (match (== n 0)
     (true unit)
@@ -48,6 +55,7 @@
 (base:function failure ((e error)) result
   (failed e))
 
+;; Replace OLD with NEW-SIZE storage, preserving the shorter prefix on success.
 (base:function resize ((b backend) (old (pointer u8)) (old-size u64) (new-size u64) (alignment u64))
   result
   (match (allocate b new-size alignment)
@@ -59,10 +67,12 @@
        (success p)))))
 
 ; Checked size arithmetic returns (tuple success value); overflow returns (false, 0).
+;; Checked u64 addition, returned as (valid, value).
 (base:function checked-add-size ((a u64) (b u64)) (tuple bool u64)
   (let ((limit u64 (base:maxBound)))
     (match (> b (- limit a)) (true (tuple false 0)) (false (tuple true (+ a b))))))
 
+;; Checked u64 multiplication, returned as (valid, value).
 (base:function checked-multiply-size ((a u64) (b u64)) (tuple bool u64)
   (let ((limit u64 (base:maxBound)))
     (match (== a 0)

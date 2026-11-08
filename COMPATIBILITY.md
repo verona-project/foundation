@@ -13,7 +13,7 @@ Modules use filenames and explicit exports. Tests use the bundled `testing` pack
 | Recursive nominal layouts, even pointers to self | Compiler explicitly rejects them; arena block links use pointer-void with a completed block cast |
 | Source-level sizeof/alignof | No supported operation; callers supply collection layouts, and arena metadata is isolated to the known 64-bit ABI (40 bytes, alignment 8) |
 | Writable product field places | Compiler reports `expression is not writable`; update the complete value through a writable descriptor pointer |
-| Numeric literal inference in generic comparisons | Concrete u64/literal calls failed with conflicting inference/no implementation; Project-local `foundation.compat.arithmetic`/`foundation.compat.signed_arithmetic` shims contextualize literals through existing `base` protocols |
+| Concrete numeric operations | Concrete typed `+`, `-`, `*`, `/`, `=`, `<`, `<=`, `>`, and `>=` calls resolve through the compiler defaults, including a literal operand. Base's `equality` protocol uses `=`, so constrained and concrete equality share one spelling. Foundation tests both signed and unsigned direct operators. |
 | Sum construction at the end of `do` | Context is not propagated in every position; use typed result helpers or typed local bindings |
 | Qualified sum constructors as imported functions | Not exported declarations; match unqualified constructors against known sum types and expose explicit helper functions |
 | Exhaustiveness of partial tuple patterns | Separate true/false tuple patterns do not establish exhaustiveness; use a final whole-tuple binding pattern |
@@ -27,5 +27,5 @@ and macro-generated collections are concretely instantiated by the tests. Missin
 language features have working adaptations except automatic/enforced layout and
 ownership safety, which remain explicit limitations rather than implied guarantees.
 
-Base and compiler operator behavior are unchanged. Review of direct operator
-dispatch/literal inference is deferred; the temporary shims stay outside Base.
+Foundation uses the current direct operator support; no arithmetic compatibility
+module is required.

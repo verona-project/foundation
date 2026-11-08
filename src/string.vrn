@@ -3,6 +3,7 @@
 (import data :as d)
 (import error :as e)
 
+;; Owned, validated UTF-8 bytes with their Unicode scalar count.
 (base:type string (product (storage d:data) (scalars u64)))
 
 (base:function byte ((p (pointer u8)) (i u64)) u64
@@ -170,12 +171,15 @@
                   needle
                   (+ position 1))))))))))
 
+;; Find NEEDLE and return (found, scalar-index); an empty needle is at zero.
 (base:function find ((haystack string) (needle string)) (tuple bool u64)
   (search-at (bytes haystack) (bytes needle) 0))
 
+;; Copy SOURCE into OWNER using OWNER's allocator.
 (base:function copy ((source string) (owner (pointer string))) e:status
   (from-utf8 owner (bytes source)))
 
+;; Concatenate distinct LEFT and RIGHT storage into OWNER.
 (base:function concat ((left string) (right string) (owner (pointer string))) e:status
   (match (a:checked-add-size (byte-length left) (byte-length right))
     ((tuple false _) (e:too-large))
@@ -195,6 +199,7 @@
             (e:success)))
          (reason reason))))))
 
+;; Release string storage and leave OWNER empty.
 (base:function destroy ((owner (pointer string))) unit
   (let ((storage d:data (field (deref owner) storage)))
     (do (d:destroy (& storage)) (store (deref owner) (string storage 0)) unit)))

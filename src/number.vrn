@@ -4,8 +4,10 @@
 (import error :as e)
 
 ; Primitive numbers remain unboxed. Results distinguish malformed text from overflow.
+;; Result of decimal u64 parsing.
 (base:type result (sum (value u64) (invalid) (overflow)))
 
+;; Result of a checked u64-to-i64 conversion.
 (base:type signed-result (sum (signed i64) (overflow)))
 
 (base:function parse-at ((p (pointer u8)) (count u64) (acc u64)) result
@@ -26,11 +28,13 @@
                      ((tuple false _) (overflow))
                      ((tuple valid sum) (parse-at (pointer-offset p 1) (- count 1) sum)))))))))))))
 
+;; Parse nonempty ASCII decimal digits only.
 (base:function parse-u64 ((source d:view)) result
   (match (== (field source length) 0)
     (true (invalid))
     (false (parse-at (field source bytes) (field source length) 0))))
 
+;; Convert NUMBER to i64, reporting overflow instead of truncating.
 (base:function to-i64 ((number u64)) signed-result
   (let ((signed-limit i64 (base:maxBound)) (unsigned-limit u64 (base:convert signed-limit)))
     (match (> number unsigned-limit)
@@ -50,6 +54,7 @@
       (let ((offset u64 48) (digit u8 (base:convert (+ offset number))))
         (d:append owner digit)))))
 
+;; Replace OWNER with NUMBER's ASCII decimal form, without a trailing NUL.
 (base:function format-u64 ((number u64) (owner (pointer d:data))) e:status
   ; Reserve all 20 possible decimal digits before changing the destination.
   (match (d:resize owner 20)

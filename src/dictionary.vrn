@@ -3,6 +3,8 @@
 (import array)
 (import error)
 
+;; Generate an open-addressed concrete dictionary API for PREFIX.
+;; HASH and EQUAL must agree; SIZE and ALIGNMENT describe one slot.
 (base:macro define (prefix key value hash equal size alignment)
   `((base:type ,(symbol-concat prefix "-slot") (sum (vacant) (deleted) (occupied ,key ,value u64)))
     (array:define ,(symbol-concat prefix "-slots") ,(symbol-concat prefix "-slot"))

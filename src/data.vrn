@@ -8,10 +8,13 @@
 
 (ar:define byte u8)
 
+;; Owned mutable bytes: pointer, length, capacity, and allocation layout.
 (base:type data (tuple (pointer u8) u64 u64 ar:layout))
 
+;; Borrowed byte range; it never owns or frees its bytes.
 (base:type view (product (bytes (pointer u8)) (length u64)))
 
+;; Construct an empty owner using ALLOCATOR for later growth.
 (base:function empty ((allocator a:backend)) data
   (byte-empty "" (ar:layout 1 1 allocator)))
 
@@ -24,6 +27,7 @@
 (base:function borrow ((value data)) view
   (view (bytes value) (length value)))
 
+;; Return a checked borrowed byte slice as (valid, view).
 (base:function slice ((value view) (start u64) (count u64)) (tuple bool view)
   (match (<= start (field value length))
     (false (tuple false value))
@@ -42,9 +46,11 @@
           (let ((half u64 (/ count 2)))
             (do (fill p half) (fill (pointer-offset p half) (- count half)))))))))
 
+;; Ensure OWNER has at least CAPACITY bytes without changing its length.
 (base:function reserve ((owner (pointer data)) (capacity u64)) e:status
   (byte-reserve owner capacity))
 
+;; Set logical length, zero-filling any newly exposed bytes.
 (base:function resize ((owner (pointer data)) (count u64)) e:status
   (match (byte-reserve owner count)
     ((ok)
@@ -57,9 +63,11 @@
          (e:success))))
     (reason reason)))
 
+;; Append one byte, growing OWNER when necessary.
 (base:function append ((owner (pointer data)) (byte u8)) e:status
   (byte-append owner byte))
 
+;; Replace an empty OWNER with a copy of SOURCE.
 (base:function assign-bytes ((owner (pointer data)) (source view)) e:status
   (match (resize owner (field source length))
     ((ok)
@@ -68,6 +76,7 @@
        (e:success)))
     (reason reason)))
 
+;; Copy SOURCE into OUT, preserving OUT's allocation policy.
 (base:function copy ((source data) (out (pointer data))) e:status
   (byte-copy-into source out))
 
@@ -89,11 +98,13 @@
                   (pointer-offset right half)
                   (- count half))))))))))
 
+;; Compare two views byte-for-byte.
 (base:function equal ((left view) (right view)) bool
   (match (== (field left length) (field right length))
     (false false)
     (true (equal-bytes (field left bytes) (field right bytes) (field left length)))))
 
+;; Release owned storage; destroying an empty owner is safe.
 (base:function destroy ((owner (pointer data))) unit
   (byte-destroy owner))
 

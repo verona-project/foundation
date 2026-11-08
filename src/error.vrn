@@ -1,6 +1,7 @@
 (import base)
 (import allocator :as a)
 
+;; Status shared by mutating Foundation operations.
 (base:type status (sum (ok) (allocation-error a:error) (bounds) (invalid-input) (overflow)))
 
 (base:type context (product (code i32) (description (pointer u8)) (detail (pointer u8))))
@@ -20,6 +21,7 @@
 (base:function allocation ((e a:error)) status
   (allocation-error e))
 
+;; Return a borrowed NUL-terminated description for STATUS.
 (base:function description ((e status)) (pointer u8)
   (match e
     ((ok) "success")

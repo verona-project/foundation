@@ -15,6 +15,7 @@
     (initial u64)
     (backing a:backend)))
 
+;; Create an empty arena backed by BACKING; zero INITIAL selects the default size.
 (base:function create ((backing a:backend) (initial u64)) arena
   (arena
     (cast (pointer void) "")
@@ -126,6 +127,7 @@
                      (field (deref owner) backing)))
                  (find-space (cast (pointer void) b) 1 size alignment owner)))))))))))
 
+;; Allocate arena storage with SIZE and ALIGNMENT.
 (base:function allocate ((owner (pointer arena)) (size u64) (alignment u64)) a:result
   (match (a:valid-alignment alignment)
     (false (a:failure (invalid-error)))
@@ -157,6 +159,7 @@
               (field (deref b) alignment)))
           (reset-blocks (field (deref b) next) (- count 1)))))))
 
+;; Retain segments but invalidate and forget every allocation.
 (base:function reset ((owner (pointer arena))) unit
   (do
     (reset-blocks (field (deref owner) head) (field (deref owner) blocks))
@@ -181,6 +184,7 @@
           (a:deallocate backing (cast (pointer u8) p) 40 8)
           (destroy-blocks (field b next) (- count 1) backing))))))
 
+;; Release all segments and reset OWNER to an empty, reusable descriptor.
 (base:function destroy ((owner (pointer arena))) unit
   (do
     (destroy-blocks
@@ -196,12 +200,15 @@
 (base:function release ((context (pointer void)) (p (pointer u8)) (size u64) (alignment u64)) unit
   unit)
 
+;; Expose OWNER as an allocator backend; OWNER must remain at a stable address.
 (base:function allocator ((owner (pointer arena))) a:backend
   (a:backend (cast (pointer void) owner) acquire release))
 
+;; Report bytes consumed, including alignment padding.
 (base:function used ((owner arena)) u64
   (field owner used))
 
+;; Report retained payload capacity across all arena segments.
 (base:function capacity ((owner arena)) u64
   (field owner capacity))
 

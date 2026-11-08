@@ -12,15 +12,15 @@ collector, object headers, runtime registry, or reference tracking are introduce
 Use the repository development shell and configured build:
 
 ```sh
-make test-foundation
-make test
 cd projects/foundation
 ../../build/verona build foundation ../../build/foundation
+../../build/verona build foundation-tests ../../build/foundation
 ../../build/verona build foundation-example ../../build/foundation
+../../build/foundation/foundation-tests
 ../../build/foundation/foundation-example
 ```
 
-`foundation-tests` runs 276 named unit tests and one separate integration test.
+`foundation-tests` runs 252 named unit tests and one separate integration test.
 See [Testing](TESTING.md) for coverage, allocation checks, and selecting a module
 or individual test.
 `foundation-example` runs the arena-backed Array<String>, Dictionary<String,u64>,
@@ -31,8 +31,8 @@ normal Verona consumption interface; it does not declare a C export API.
 Add this package's `src` and `../base/src` to a consumer's module paths. Import
 individual modules explicitly; `foundation.vrn` is the library build aggregator.
 Each file defines its own namespace. Collection macro expansions refer to `base`,
-`array`, `allocator`, `foundation.compat.arithmetic`, and `error`; clients must import those module
-names too (aliases alone do not introduce the original qualified names).
+`array`, `allocator`, and `error`; clients must import those module names too
+(aliases alone do not introduce the original qualified names).
 
 ## Memory and lifetime contract
 
@@ -76,28 +76,116 @@ names too (aliases alone do not introduce the original qualified names).
   distinct from borrowed source storage. Visitor callbacks must not mutate the
   collection being visited. APIs are unsynchronized; callers coordinate access.
 
-## Public APIs
+## API reference
 
-| Module | Core API |
-| --- | --- |
-| `allocator` | `backend`, `result`, `error`, `allocate`, `resize`, `deallocate`, `valid-alignment`, `checked-add-size`, `checked-multiply-size`, `copy-bytes` |
-| `system_allocator` | `create` returns the POSIX backend (`posix_memalign` paired with `free`) |
-| `arena` | `arena`, `create`, `allocate`, `allocator`, `reset`, `destroy`, `used`, `capacity` |
-| `data` | `data`, borrowed `view`, `empty`, `assign-bytes`, `bytes`, `length`, `borrow`, `slice`, `reserve`, `append`, `resize`, `copy`, `equal`, `destroy` |
-| `string` | `string`, `empty`, `validate`, `from-utf8`, `bytes`, `byte-length`, `scalar-length`, `equal`, `substring`, `find`, `copy`, `concat`, `destroy` |
-| `number` | Unboxed primitives; `parse-u64`, checked `to-i64`, `format-u64`, distinct invalid/overflow results |
-| `date` | `instant`, `duration`, `now`, `before`, checked `add`/`subtract`/`between` |
-| `error` | `status` sum with success/allocation/bounds/invalid/overflow cases; descriptions; optional `context` value with code, description, detail |
-| `array` | `layout`, `define` specialization macro; generated operations below |
-| `dictionary` | `define` specialization macro; generated hash table below |
-| `set` | `define` specialization macro reuses Dictionary with a boolean payload |
+Every item below is exported by its named module. Functions that mutate an
+owner accept a pointer to that owner; successful mutators return `(ok)` unless
+their signature states another result type.
 
-`foundation.compat.arithmetic` and `foundation.compat.signed_arithmetic` are
-private, temporary compatibility shims. They forward typed u64/i64 calls to the
-existing Base protocols while literal inference and direct operator dispatch
-remain deferred for Base/compiler review. They add no arithmetic semantics or
-checked operations and are not public Foundation APIs. The bundled formatter
-reuses these shims; Base itself is unchanged.
+### `allocator`
+
+- `error`: `(invalid-layout)`, `(overflow)`, or `(out-of-memory)`.
+- `result`: `(allocated (pointer u8))` or `(failed error)`.
+- `backend`: an allocation context plus acquire/release callbacks.
+- `success(pointer)` and `failure(error)`: construct `result` values.
+- `valid-alignment(alignment)`: true for a nonzero power-of-two alignment.
+- `allocate(backend, size, alignment)`: delegates to the backend.
+- `deallocate(backend, pointer, size, alignment)`: releases a matching allocation.
+- `resize(backend, old, old-size, new-size, alignment)`: allocates, copies the
+  preserved prefix, and releases the old allocation only after success.
+- `copy-bytes(destination, source, count)`: copies `count` bytes; ranges must not overlap.
+- `checked-add-size(left, right)` and `checked-multiply-size(left, right)`:
+  return `(tuple valid value)` and reject `u64` overflow.
+
+### `system_allocator`
+
+- `create()`: returns the POSIX allocation backend. Its allocations use
+  `posix_memalign` and must be returned through the same backend.
+
+### `arena`
+
+- `arena`: segmented allocator state; construct it with `create`.
+- `create(backend, initial-capacity)`: returns an empty arena. Zero capacity
+  selects the default capacity.
+- `allocate(owner, size, alignment)`: returns `allocator:result` from arena storage.
+- `allocator(owner)`: exposes the arena as an `allocator:backend`.
+- `reset(owner)`: reuses segments and invalidates all outstanding allocations.
+- `destroy(owner)`: releases segments, empties the descriptor, and invalidates
+  all outstanding allocations.
+- `used(arena)` and `capacity(arena)`: report current payload use and retained capacity.
+
+### `data`
+
+- `data`: owned mutable byte storage; `view`: borrowed `(bytes,length)` range.
+- `empty(backend)`, `length(data)`, `bytes(data)`, and `borrow(data)`: create
+  or inspect storage. `bytes`/`borrow` are invalidated by a moving mutation.
+- `slice(view, start, count)`: returns `(tuple valid view)` with checked byte bounds.
+- `reserve(owner, capacity)`, `resize(owner, length)`, and `append(owner, byte)`:
+  grow or change contents; resize zero-fills newly exposed bytes.
+- `assign-bytes(owner, view)`: replaces an empty owner with a copy of the view.
+- `copy(source, out)`: creates an independent owner using `out`'s allocator.
+- `equal(left-view, right-view)`: bytewise equality.
+- `destroy(owner)`: releases owned storage; repeated destruction is safe.
+
+### `string`
+
+- `string`: owned validated UTF-8 storage plus scalar count.
+- `empty(backend)`: creates an empty string.
+- `validate(view)`: returns `(tuple valid scalar-count)` without allocating.
+- `from-utf8(owner, view)`: validates and replaces an empty owner.
+- `bytes(string)`, `byte-length(string)`, and `scalar-length(string)`: inspect
+  the borrowed UTF-8 bytes and their byte/scalar lengths.
+- `equal(left, right)`: exact UTF-8-byte equality.
+- `substring(string, start-scalar, scalar-count)`: returns `(tuple valid view)`;
+  bounds are Unicode scalar indices, not grapheme indices.
+- `find(haystack, needle)`: returns `(tuple found scalar-index)`.
+- `copy(source, out)`, `concat(left, right, out)`, and `destroy(owner)`: manage
+  owned string storage; `out` selects the allocator for copy/concatenation.
+
+### `number`
+
+- `result`: `(value u64)`, `(invalid)`, or `(overflow)` for decimal parsing.
+- `signed-result`: `(signed i64)` or `(overflow)`.
+- `parse-u64(view)`: parses nonempty ASCII decimal digits only.
+- `to-i64(u64)`: checked conversion to `i64`.
+- `format-u64(number, data-owner)`: replaces the destination with decimal ASCII,
+  without a terminating NUL.
+
+### `date`
+
+- `instant` and `duration`: signed Unix-second products.
+- `result`: `(at instant)`, `(overflow)`, or `(clock-error)`; `duration-result`:
+  `(elapsed duration)` or `(overflow)`.
+- `now()`: reads wall-clock Unix seconds.
+- `before(left, right)`: strict instant comparison.
+- `add(instant, duration)` and `subtract(instant, duration)`: checked arithmetic.
+- `between(start, end)`: checked `end - start` duration.
+
+### `error`
+
+- `status`: `(ok)`, `(allocation-error allocator:error)`, `(bounds)`,
+  `(invalid-input)`, or `(overflow)`.
+- `context`: `(code i32, description pointer, detail pointer)` for borrowed
+  NUL-terminated diagnostics.
+- `success()`, `invalid()`, `out-of-bounds()`, `too-large()`, and
+  `allocation(allocator-error)`: construct `status` values.
+- `description(status)`: returns a fixed NUL-terminated description.
+
+### Collections
+
+- `array:layout(size, alignment, backend)` describes concrete element storage.
+  `array:define PREFIX ELEMENT` generates `PREFIX-empty`, `-length`, `-capacity`,
+  `-reserve`, `-get`, `-append`, `-insert`, `-remove`, `-replace`, `-clear`,
+  `-copy-into`, `-visit`, and `-destroy`.
+- `dictionary:define PREFIX KEY VALUE HASH EQUAL SLOT-SIZE SLOT-ALIGNMENT`
+  generates `PREFIX-table`, `-empty`, `-count`, `-capacity`, `-lookup`, `-get`,
+  `-contains`, `-insert`, `-remove`, `-clear`, `-visit`, and `-destroy`.
+- `set:define PREFIX ELEMENT HASH EQUAL SLOT-SIZE SLOT-ALIGNMENT` generates the
+  dictionary operations for a boolean payload plus `PREFIX-add`.
+
+Foundation uses the compiler's concrete default operators directly: `+`, `-`,
+`*`, `/`, `=`, `<`, `<=`, `>`, and `>=`. Base's constrained `equality`
+protocol uses the same `=` spelling, so generic and concrete equality agree.
 
 A successful mutation returns `error:status` case `(ok)`; errors are sum values.
 Allocator, Number, and Date additionally have module-specific result/error sums.
@@ -227,28 +315,25 @@ All new files are under `projects/foundation/`:
 - `src/data.vrn`, `src/string.vrn`, `src/number.vrn`, `src/date.vrn`, `src/error.vrn`: primitive Foundation APIs.
 - `src/array.vrn`, `src/dictionary.vrn`, `src/set.vrn`: collection specialization and algorithms.
 - `src/foundation.vrn`: build aggregation.
-- `src/foundation.compat.arithmetic.vrn` and `src/foundation.compat.signed_arithmetic.vrn`:
-  temporary private compiler compatibility shims.
 - `tests/test_allocator.vrn`, `tests/test_system_allocator.vrn`, `tests/test_arena.vrn`, `tests/test_data.vrn`,
   `tests/test_string.vrn`, `tests/test_number.vrn`, `tests/test_array.vrn`,
   `tests/test_dictionary.vrn`, `tests/test_set.vrn`, `tests/test_date.vrn`,
-  `tests/test_error.vrn`, `tests/test_compat_arithmetic.vrn`: module and compatibility regression tests.
+  `tests/test_error.vrn`, `tests/test_compat_arithmetic.vrn`: module and default-operator regression tests.
 - `tests/support.vrn`, `tests/test_integration.vrn`, `tests/suite.vrn`,
   `tests/example.vrn`: deterministic failing allocator, shared-arena integration,
   complete runner, and executable example.
 - `verona.build`, `README.md`, `COMPATIBILITY.md`, `TESTING.md`: build targets, API/ownership
   documentation, and compiler capability assessment.
 
-Existing root files changed: `Makefile.am` adds `test-foundation` to `make test`;
-`readme.md` links the package. Generated build/configuration outputs are not source
-changes. Pre-existing unrelated untracked files were left alone.
+The root Verona Makefile builds compiler tools but has no Foundation-specific
+test target. Build Foundation targets directly through this package's manifest,
+as shown above.
 
-Executed successfully on the available host/compiler:
+Current verification on the available host/compiler:
 
-- `make test-foundation`: native module and integration suites, exit 0.
-- `make test`: 1,306 frontend checks, 84 LLVM checks, 189 compiler/driver checks,
-  existing Verona testing smoke suite, and Foundation suite; no failures/skips.
 - `verona build foundation`: static archive produced.
+- `verona build foundation-tests` followed by its executable: all 253 named
+  cases pass.
 - `verona build foundation-example` and its executable: exit 0.
 - `git diff --check`: clean.
 
@@ -277,11 +362,11 @@ verona build foundation-example ./build
 ./build/foundation-example
 ```
 
-The Make commands above run from the main
+The commands above run from the main
 [Verona](https://github.com/verona-project/verona) checkout, where this package
 is pinned at `projects/foundation`. Use its pinned Nix development environment
-for native verification. `make test-foundation` runs Foundation's suite;
-`make test-formatter` exercises its formatter consumer.
+for native verification. Build the formatter separately through the root
+manifest when exercising that consumer.
 
 Public clones use HTTPS. To push Foundation changes over SSH:
 

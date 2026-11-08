@@ -11,10 +11,12 @@
 ; time_t is signed 64-bit on supported Darwin/Linux targets.
 (base:external-function system-time "time" ((pointer i64)) i64)
 
+;; Read the wall clock as a Unix-second instant.
 (base:function now () result
   (let ((output i64 0) (value i64 (system-time (& output))))
     (match (== value -1) (true (clock-error)) (false (at (instant value))))))
 
+;; True when LEFT is earlier than RIGHT.
 (base:function before ((left instant) (right instant)) bool
   (< (field left seconds) (field right seconds)))
 
@@ -29,6 +31,8 @@
         (match (< x (- minimum y))
           (true (overflow))
           (false (at (instant (+ x y)))))))))
+
+;; Add DELTA with signed-overflow detection.
 (base:function add ((value instant) (delta duration)) result
   (add-seconds (field value seconds) (field delta seconds)))
 
@@ -44,9 +48,11 @@
           (true (overflow))
           (false (at (instant (- x y)))))))))
 
+;; Subtract DELTA with signed-overflow detection.
 (base:function subtract ((value instant) (delta duration)) result
   (subtract-seconds (field value seconds) (field delta seconds)))
 
+;; Return END minus START, or overflow.
 (base:function between ((start instant) (end instant)) duration-result
   (match (subtract-seconds (field end seconds) (field start seconds))
     ((at value) (elapsed (duration (field value seconds))))

@@ -2,9 +2,11 @@
 (import allocator :as a)
 (import error :as e)
 
+;; Explicit element allocation contract for a specialized array.
 (base:type layout (product (size u64) (alignment u64) (allocator a:backend)))
 
 ; Descriptor: (pointer T, logical length, capacity, layout). Never duplicate ownership.
+;; Generate an owning concrete array API for PREFIX and ELEMENT.
 (base:macro define (prefix element)
   `((base:function ,(symbol-concat prefix "-empty")
       ((witness (pointer ,element)) (storage array:layout))
