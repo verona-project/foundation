@@ -1,5 +1,4 @@
 (import base)
-(import foundation.compat.signed_arithmetic :as n)
 
 (base:type instant (product (seconds i64)))
 
@@ -14,35 +13,36 @@
 
 (base:function now () result
   (let ((output i64 0) (value i64 (system-time (& output))))
-    (match (n:eq value -1) (true (clock-error)) (false (at (instant value))))))
+    (match (== value -1) (true (clock-error)) (false (at (instant value))))))
 
 (base:function before ((left instant) (right instant)) bool
-  (n:lt (field left seconds) (field right seconds)))
+  (< (field left seconds) (field right seconds)))
 
 (base:function add-seconds ((x i64) (y i64)) result
-  (match (n:gt y 0)
-    (true
-      (match (n:gt x (n:sub (base:maxBound) y))
-        (true (overflow))
-        (false (at (instant (n:add x y))))))
-    (false
-      (match (n:lt x (n:sub (base:minBound) y))
-        (true (overflow))
-        (false (at (instant (n:add x y))))))))
-
+  (let ((minimum i64 (base:minBound)) (maximum i64 (base:maxBound)))
+    (match (> y 0)
+      (true
+        (match (> x (- maximum y))
+          (true (overflow))
+          (false (at (instant (+ x y))))))
+      (false
+        (match (< x (- minimum y))
+          (true (overflow))
+          (false (at (instant (+ x y)))))))))
 (base:function add ((value instant) (delta duration)) result
   (add-seconds (field value seconds) (field delta seconds)))
 
 (base:function subtract-seconds ((x i64) (y i64)) result
-  (match (n:gt y 0)
-    (true
-      (match (n:lt x (n:add (base:minBound) y))
-        (true (overflow))
-        (false (at (instant (n:sub x y))))))
-    (false
-      (match (n:gt x (n:add (base:maxBound) y))
-        (true (overflow))
-        (false (at (instant (n:sub x y))))))))
+  (let ((minimum i64 (base:minBound)) (maximum i64 (base:maxBound)))
+    (match (> y 0)
+      (true
+        (match (< x (+ minimum y))
+          (true (overflow))
+          (false (at (instant (- x y))))))
+      (false
+        (match (> x (+ maximum y))
+          (true (overflow))
+          (false (at (instant (- x y)))))))))
 
 (base:function subtract ((value instant) (delta duration)) result
   (subtract-seconds (field value seconds) (field delta seconds)))

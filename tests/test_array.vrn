@@ -1,8 +1,6 @@
 (import base)
 (import testing)
 (import allocator)
-(import foundation.compat.arithmetic)
-(import foundation.compat.arithmetic :as n)
 (import error)
 (import system_allocator :as system)
 (import support)
@@ -16,27 +14,27 @@
   (ints-empty (cast (pointer u64) (cast (pointer void) "")) (array:layout 8 8 (support:backend))))
 
 (base:function populate ((owner (pointer integers)) (i u64) (count u64)) testing:result
-  (match (n:eq i count)
+  (match (= i count)
     (true (testing:empty))
     (false
-      (match (ints-append owner (n:add (n:mul i 17) 3))
-        ((ok) (populate owner (n:add i 1) count))
+      (match (ints-append owner (+ (* i 17) 3))
+        ((ok) (populate owner (+ i 1) count))
         (_ (testing:fail))))))
 
 (base:function verify ((items integers) (i u64) (count u64)) testing:result
-  (match (n:eq i count)
+  (match (= i count)
     (true (testing:empty))
     (false
       (testing:checks
         (testing:check
           (match (ints-get items i)
-            ((tuple true p) (n:eq (deref p) (n:add (n:mul i 17) 3)))
+            ((tuple true p) (= (deref p) (+ (* i 17) 3)))
             (_ false)))
-        (verify items (n:add i 1) count)))))
+        (verify items (+ i 1) count)))))
 
 (base:function drain-front ((owner (pointer integers)) (i u64) (count u64) (acc testing:result))
   testing:result
-  (match (n:eq i count)
+  (match (= i count)
     (true acc)
     (false
       (let
@@ -44,25 +42,26 @@
            testing:result
            (testing:check
              (match (ints-get (deref owner) 0)
-               ((tuple true p) (n:eq (deref p) (n:add (n:mul i 17) 3)))
+               ((tuple true p) (= (deref p) (+ (* i 17) 3)))
                (_ false)))))
         (match (ints-remove owner 0)
-          ((ok) (drain-front owner (n:add i 1) count (testing:checks acc result)))
+          ((ok) (drain-front owner (+ i 1) count (testing:checks acc result)))
           (_ (testing:checks acc (testing:fail))))))))
 
 (base:function prepend ((owner (pointer integers)) (i u64)) testing:result
-  (match (n:eq i 512)
+  (match (= i 512)
     (true (testing:empty))
-    (false (match (ints-insert owner 0 i) ((ok) (prepend owner (n:add i 1))) (_ (testing:fail))))))
+    (false (match (ints-insert owner 0 i) ((ok) (prepend owner (+ i 1))) (_ (testing:fail))))))
 
 (base:function verify-reversed ((items integers) (i u64)) testing:result
-  (match (n:eq i 512)
-    (true (testing:empty))
-    (false
-      (testing:checks
-        (testing:check
-          (match (ints-get items i) ((tuple true p) (n:eq (deref p) (n:sub 511 i))) (_ false)))
-        (verify-reversed items (n:add i 1))))))
+  (let ((last u64 511))
+    (match (= i 512)
+      (true (testing:empty))
+      (false
+        (testing:checks
+          (testing:check
+            (match (ints-get items i) ((tuple true p) (= (deref p) (- last i))) (_ false)))
+          (verify-reversed items (+ i 1)))))))
 
 (base:variable visit-index u64 0)
 
@@ -70,10 +69,10 @@
 
 (base:function visit ((value u64)) unit
   (do
-    (match (n:eq value (n:add (n:mul visit-index 17) 3))
+    (match (= value (+ (* visit-index 17) 3))
       (true unit)
-      (false (do (assign visit-errors (n:add visit-errors 1)) unit)))
-    (assign visit-index (n:add visit-index 1))
+      (false (do (assign visit-errors (+ visit-errors 1)) unit)))
+    (assign visit-index (+ visit-index 1))
     unit))
 
 (testing:test empty-does-not-allocate
@@ -82,9 +81,9 @@
       ((observed
          testing:result
          (testing:checks
-           (testing:check (n:eq (ints-length items) 0))
-           (testing:check (n:eq (ints-capacity items) 0))
-           (testing:check (n:eq (support:attempts) 0)))))
+           (testing:check (= (ints-length items) 0))
+           (testing:check (= (ints-capacity items) 0))
+           (testing:check (= (support:attempts) 0)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test reserve-preserves-zero-logical-length
@@ -94,8 +93,8 @@
          testing:result
          (testing:checks
            (testing:check (match (ints-reserve (& items) 31) ((ok) true) (_ false)))
-           (testing:check (n:eq (ints-length items) 0))
-           (testing:check (n:eq (ints-capacity items) 31)))))
+           (testing:check (= (ints-length items) 0))
+           (testing:check (= (ints-capacity items) 31)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test smaller-reserve-does-not-reallocate
@@ -107,7 +106,7 @@
            (testing:check (match (ints-reserve (& items) 31) ((ok) true) (_ false)))
            (testing:check (match (ints-reserve (& items) 0) ((ok) true) (_ false)))
            (testing:check (match (ints-reserve (& items) 17) ((ok) true) (_ false)))
-           (testing:check (n:eq (support:attempts) 1)))))
+           (testing:check (= (support:attempts) 1)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test append-4096-elements-verifies-every-value
@@ -117,9 +116,9 @@
          testing:result
          (testing:checks
            (populate (& items) 0 4096)
-           (testing:check (n:eq (ints-length items) 4096))
+           (testing:check (= (ints-length items) 4096))
            (verify items 0 4096)
-           (testing:check (n:ge (ints-capacity items) 4096)))))
+           (testing:check (>= (ints-capacity items) 4096)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test prepend-512-elements-preserves-reverse-order
@@ -130,7 +129,7 @@
          (testing:checks
            (prepend (& items) 0)
            (verify-reversed items 0)
-           (testing:check (n:eq (ints-length items) 512)))))
+           (testing:check (= (ints-length items) 512)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test remove-every-front-element-preserves-order
@@ -141,7 +140,7 @@
          (testing:checks
            (populate (& items) 0 512)
            (drain-front (& items) 0 512 (testing:empty))
-           (testing:check (n:eq (ints-length items) 0)))))
+           (testing:check (= (ints-length items) 0)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test empty-rejects-get
@@ -151,8 +150,8 @@
          testing:result
          (testing:checks
            (testing:check (match (ints-get items 0) ((tuple false _) true) (_ false)))
-           (testing:check (n:eq (ints-length items) 0))
-           (testing:check (n:eq (support:attempts) 0)))))
+           (testing:check (= (ints-length items) 0))
+           (testing:check (= (support:attempts) 0)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test empty-rejects-remove
@@ -162,8 +161,8 @@
          testing:result
          (testing:checks
            (testing:check (match (ints-remove (& items) 0) ((bounds) true) (_ false)))
-           (testing:check (n:eq (ints-length items) 0))
-           (testing:check (n:eq (support:attempts) 0)))))
+           (testing:check (= (ints-length items) 0))
+           (testing:check (= (support:attempts) 0)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test empty-rejects-replace
@@ -173,8 +172,8 @@
          testing:result
          (testing:checks
            (testing:check (match (ints-replace items 0 99) ((bounds) true) (_ false)))
-           (testing:check (n:eq (ints-length items) 0))
-           (testing:check (n:eq (support:attempts) 0)))))
+           (testing:check (= (ints-length items) 0))
+           (testing:check (= (support:attempts) 0)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test empty-rejects-insert-past-end
@@ -184,8 +183,8 @@
          testing:result
          (testing:checks
            (testing:check (match (ints-insert (& items) 1 99) ((bounds) true) (_ false)))
-           (testing:check (n:eq (ints-length items) 0))
-           (testing:check (n:eq (support:attempts) 0)))))
+           (testing:check (= (ints-length items) 0))
+           (testing:check (= (support:attempts) 0)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test get-rejects-index-3
@@ -229,8 +228,8 @@
          (testing:checks
            (populate (& items) 0 3)
            (testing:check (match (ints-insert (& items) 1 99) ((ok) true) (_ false)))
-           (testing:check (match (ints-get items 1) ((tuple true p) (n:eq (deref p) 99)) (_ false)))
-           (testing:check (match (ints-get items 3) ((tuple true p) (n:eq (deref p) 37)) (_ false)))
+           (testing:check (match (ints-get items 1) ((tuple true p) (= (deref p) 99)) (_ false)))
+           (testing:check (match (ints-get items 3) ((tuple true p) (= (deref p) 37)) (_ false)))
            (testing:check (match (ints-remove (& items) 1) ((ok) true) (_ false)))
            (verify items 0 3))))
       (do (ints-destroy (& items)) observed))))
@@ -243,10 +242,10 @@
          (testing:checks
            (populate (& items) 0 3)
            (testing:check (match (ints-replace items 1 99) ((ok) true) (_ false)))
-           (testing:check (match (ints-get items 0) ((tuple true p) (n:eq (deref p) 3)) (_ false)))
-           (testing:check (match (ints-get items 1) ((tuple true p) (n:eq (deref p) 99)) (_ false)))
-           (testing:check (match (ints-get items 2) ((tuple true p) (n:eq (deref p) 37)) (_ false)))
-           (testing:check (n:eq (ints-length items) 3)))))
+           (testing:check (match (ints-get items 0) ((tuple true p) (= (deref p) 3)) (_ false)))
+           (testing:check (match (ints-get items 1) ((tuple true p) (= (deref p) 99)) (_ false)))
+           (testing:check (match (ints-get items 2) ((tuple true p) (= (deref p) 37)) (_ false)))
+           (testing:check (= (ints-length items) 3)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test clear-retains-capacity-for-reuse
@@ -283,8 +282,8 @@
              (assign visit-index 0)
              (assign visit-errors 0)
              (ints-visit items visit)
-             (testing:check (n:eq visit-index 1024)))
-           (testing:check (n:eq visit-errors 0)))))
+             (testing:check (= visit-index 1024)))
+           (testing:check (= visit-errors 0)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test empty-visitor-is-not-called
@@ -292,7 +291,7 @@
     (let
       ((observed
          testing:result
-         (do (assign visit-index 0) (ints-visit items visit) (testing:check (n:eq visit-index 0)))))
+         (do (assign visit-index 0) (ints-visit items visit) (testing:check (= visit-index 0)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test failed-growth-preserves-length-capacity-and-values
@@ -306,8 +305,8 @@
              (support:limit 0)
              (testing:check
                (match (ints-append (& items) 71) ((allocation-error reason) true) (_ false))))
-           (testing:check (n:eq (ints-length items) 4))
-           (testing:check (n:eq (ints-capacity items) 4))
+           (testing:check (= (ints-length items) 4))
+           (testing:check (= (ints-capacity items) 4))
            (verify items 0 4))))
       (do (ints-destroy (& items)) observed))))
 
@@ -323,7 +322,7 @@
              (testing:check
                (match (ints-insert (& items) 1 99) ((allocation-error reason) true) (_ false))))
            (verify items 0 4)
-           (testing:check (n:eq (ints-length items) 4)))))
+           (testing:check (= (ints-length items) 4)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test overflowing-reserve-never-calls-allocator
@@ -334,8 +333,8 @@
          (testing:checks
            (testing:check
              (match (ints-reserve (& items) (base:maxBound)) ((overflow) true) (_ false)))
-           (testing:check (n:eq (support:attempts) 0))
-           (testing:check (n:eq (ints-capacity items) 0)))))
+           (testing:check (= (support:attempts) 0))
+           (testing:check (= (ints-capacity items) 0)))))
       (do (ints-destroy (& items)) observed))))
 
 (testing:test failed-copy-preserves-existing-destination
@@ -351,7 +350,7 @@
              (testing:check
                (match (ints-copy-into items (& copy)) ((allocation-error reason) true) (_ false))))
            (verify copy 0 3)
-           (testing:check (n:eq (ints-length copy) 3)))))
+           (testing:check (= (ints-length copy) 3)))))
       (do (ints-destroy (& items)) (ints-destroy (& copy)) observed))))
 
 (testing:test destroy-is-idempotent-and-owner-can-be-reused
@@ -364,7 +363,7 @@
            (do
              (ints-destroy (& items))
              (ints-destroy (& items))
-             (testing:check (n:eq (support:outstanding) 0)))
+             (testing:check (= (support:outstanding) 0)))
            (populate (& items) 0 100)
            (verify items 0 100))))
       (do (ints-destroy (& items)) observed))))

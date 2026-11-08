@@ -1,8 +1,6 @@
 (import base)
 (import testing)
 (import allocator)
-(import foundation.compat.arithmetic)
-(import foundation.compat.arithmetic :as n)
 (import error)
 (import system_allocator :as system)
 (import array)
@@ -27,7 +25,7 @@
   key)
 
 (base:function equal-number ((left u64) (right u64)) bool
-  (n:eq left right))
+  (= left right))
 
 (set:define ids u64 hash-number equal-number 32 8)
 
@@ -63,7 +61,7 @@
                           ((ok)
                            (testing:checks
                              (testing:check (names-get table key (& out)))
-                             (testing:check (n:eq out 42))
+                             (testing:check (= out 42))
                              (testing:check (ids-contains numbers 42))
                              (testing:check (data:equal (data:borrow bytes) (data:view "Verona" 6)))))
                           (_ (testing:fail))))

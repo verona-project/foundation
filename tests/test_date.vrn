@@ -1,36 +1,37 @@
 (import base)
 (import testing)
 (import allocator)
-(import foundation.compat.arithmetic)
-(import foundation.compat.arithmetic :as n)
 (import error)
 (import system_allocator :as system)
 (import support)
 (import date)
-(import foundation.compat.signed_arithmetic :as signed)
+
+(base:function minimum () i64 (base:minBound))
+
+(base:function maximum () i64 (base:maxBound))
 
 (base:function arithmetic-cases ((i i64) (acc testing:result)) testing:result
-  (match (signed:gt i 4096)
+  (match (> i 4096)
     (true acc)
     (false
       (arithmetic-cases
-        (signed:add i 1)
+        (+ i 1)
         (testing:checks
           acc
           (testing:check
             (match (date:add (date:instant i) (date:duration -73))
-              ((at value) (signed:eq (field value seconds) (signed:sub i 73)))
+              ((at value) (= (field value seconds) (- i 73)))
               (_ false)))
           (testing:check
-            (match (date:between (date:instant i) (date:instant (signed:add i 97)))
-              ((elapsed value) (signed:eq (field value seconds) 97))
+            (match (date:between (date:instant i) (date:instant (+ i 97)))
+              ((elapsed value) (= (field value seconds) 97))
               (_ false))))))))
 
 (testing:test before-across-epoch
   (testing:check (date:before (date:instant -1) (date:instant 0))))
 
 (testing:test before-minimum-to-maximum
-  (testing:check (date:before (date:instant (base:minBound)) (date:instant (base:maxBound)))))
+  (testing:check (date:before (date:instant (minimum)) (date:instant (maximum)))))
 
 (testing:test equal-instants-are-not-before
   (testing:check
@@ -42,115 +43,115 @@
 
 (testing:test add-zero
   (testing:check
-    (match (date:add (date:instant (base:minBound)) (date:duration 0))
-      ((at actual) (signed:eq (field actual seconds) (base:minBound)))
+    (match (date:add (date:instant (minimum)) (date:duration 0))
+      ((at actual) (= (field actual seconds) (minimum)))
       (_ false))))
 
 (testing:test add-to-maximum
   (testing:check
-    (match (date:add (date:instant (signed:sub (base:maxBound) 1)) (date:duration 1))
-      ((at actual) (signed:eq (field actual seconds) (base:maxBound)))
+    (match (date:add (date:instant (- (maximum) 1)) (date:duration 1))
+      ((at actual) (= (field actual seconds) (maximum)))
       (_ false))))
 
 (testing:test add-to-minimum
   (testing:check
-    (match (date:add (date:instant (signed:add (base:minBound) 1)) (date:duration -1))
-      ((at actual) (signed:eq (field actual seconds) (base:minBound)))
+    (match (date:add (date:instant (+ (minimum) 1)) (date:duration -1))
+      ((at actual) (= (field actual seconds) (minimum)))
       (_ false))))
 
 (testing:test add-minimum-duration
   (testing:check
-    (match (date:add (date:instant 0) (date:duration (base:minBound)))
-      ((at actual) (signed:eq (field actual seconds) (base:minBound)))
+    (match (date:add (date:instant 0) (date:duration (minimum)))
+      ((at actual) (= (field actual seconds) (minimum)))
       (_ false))))
 
 (testing:test add-opposite-extremes
   (testing:check
-    (match (date:add (date:instant (base:maxBound)) (date:duration (base:minBound)))
-      ((at actual) (signed:eq (field actual seconds) -1))
+    (match (date:add (date:instant (maximum)) (date:duration (minimum)))
+      ((at actual) (= (field actual seconds) -1))
       (_ false))))
 
 (testing:test subtract-zero
   (testing:check
-    (match (date:subtract (date:instant (base:maxBound)) (date:duration 0))
-      ((at actual) (signed:eq (field actual seconds) (base:maxBound)))
+    (match (date:subtract (date:instant (maximum)) (date:duration 0))
+      ((at actual) (= (field actual seconds) (maximum)))
       (_ false))))
 
 (testing:test subtract-negative
   (testing:check
     (match (date:subtract (date:instant 10) (date:duration -10))
-      ((at actual) (signed:eq (field actual seconds) 20))
+      ((at actual) (= (field actual seconds) 20))
       (_ false))))
 
 (testing:test subtract-minimum-from-minimum
   (testing:check
-    (match (date:subtract (date:instant (base:minBound)) (date:duration (base:minBound)))
-      ((at actual) (signed:eq (field actual seconds) 0))
+    (match (date:subtract (date:instant (minimum)) (date:duration (minimum)))
+      ((at actual) (= (field actual seconds) 0))
       (_ false))))
 
 (testing:test subtract-to-minimum
   (testing:check
-    (match (date:subtract (date:instant -1) (date:duration (base:maxBound)))
-      ((at actual) (signed:eq (field actual seconds) (base:minBound)))
+    (match (date:subtract (date:instant -1) (date:duration (maximum)))
+      ((at actual) (= (field actual seconds) (minimum)))
       (_ false))))
 
 (testing:test addition-positive-overflow
   (testing:check
-    (match (date:add (date:instant (base:maxBound)) (date:duration 1)) ((overflow) true) (_ false))))
+    (match (date:add (date:instant (maximum)) (date:duration 1)) ((overflow) true) (_ false))))
 
 (testing:test addition-negative-overflow
   (testing:check
-    (match (date:add (date:instant (base:minBound)) (date:duration -1)) ((overflow) true) (_ false))))
+    (match (date:add (date:instant (minimum)) (date:duration -1)) ((overflow) true) (_ false))))
 
 (testing:test addition-minimum-duration-overflow
   (testing:check
-    (match (date:add (date:instant -1) (date:duration (base:minBound))) ((overflow) true) (_ false))))
+    (match (date:add (date:instant -1) (date:duration (minimum))) ((overflow) true) (_ false))))
 
 (testing:test subtraction-positive-overflow
   (testing:check
-    (match (date:subtract (date:instant (base:maxBound)) (date:duration -1))
+    (match (date:subtract (date:instant (maximum)) (date:duration -1))
       ((overflow) true)
       (_ false))))
 
 (testing:test subtraction-negative-overflow
   (testing:check
-    (match (date:subtract (date:instant (base:minBound)) (date:duration 1))
+    (match (date:subtract (date:instant (minimum)) (date:duration 1))
       ((overflow) true)
       (_ false))))
 
 (testing:test subtract-minimum-duration-overflow
   (testing:check
-    (match (date:subtract (date:instant 0) (date:duration (base:minBound)))
+    (match (date:subtract (date:instant 0) (date:duration (minimum)))
       ((overflow) true)
       (_ false))))
 
 (testing:test between-equal
   (testing:check
     (match (date:between (date:instant 42) (date:instant 42))
-      ((elapsed actual) (signed:eq (field actual seconds) 0))
+      ((elapsed actual) (= (field actual seconds) 0))
       (_ false))))
 
 (testing:test between-forward
   (testing:check
     (match (date:between (date:instant -10) (date:instant 10))
-      ((elapsed actual) (signed:eq (field actual seconds) 20))
+      ((elapsed actual) (= (field actual seconds) 20))
       (_ false))))
 
 (testing:test between-reverse
   (testing:check
     (match (date:between (date:instant 10) (date:instant -10))
-      ((elapsed actual) (signed:eq (field actual seconds) -20))
+      ((elapsed actual) (= (field actual seconds) -20))
       (_ false))))
 
 (testing:test between-minimum-boundary
   (testing:check
-    (match (date:between (date:instant 0) (date:instant (base:minBound)))
-      ((elapsed actual) (signed:eq (field actual seconds) (base:minBound)))
+    (match (date:between (date:instant 0) (date:instant (minimum)))
+      ((elapsed actual) (= (field actual seconds) (minimum)))
       (_ false))))
 
 (testing:test between-extremes-overflows
   (testing:check
-    (match (date:between (date:instant (base:minBound)) (date:instant (base:maxBound)))
+    (match (date:between (date:instant (minimum)) (date:instant (maximum)))
       ((overflow) true)
       (_ false))))
 

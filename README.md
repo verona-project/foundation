@@ -139,7 +139,6 @@ Verona currently needs macro specialization for owning collections; see
 ```lisp
 (import base)
 (import allocator)
-(import foundation.compat.arithmetic)
 (import error)
 (import array)
 (import dictionary)
@@ -151,7 +150,7 @@ Verona currently needs macro specialization for owning collections; see
 ; The witness is never dereferenced while length/capacity are zero.
 
 (base:function hash ((key u64)) u64 key)
-(base:function equal ((left u64) (right u64)) bool (foundation.compat.arithmetic:eq left right))
+(base:function equal ((left u64) (right u64)) bool (= left right))
 (dictionary:define scores u64 u64 hash equal 32 8)
 (set:define identifiers u64 hash equal 32 8)
 ```
